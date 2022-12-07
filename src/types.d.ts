@@ -1,10 +1,11 @@
 import pgPromise from 'pg-promise';
 
-export type CleanedConnection = {
+export type DatabaseConnConfig = {
     host: string | undefined;
     port: number | undefined;
-    user: string | undefined;
     database: string | undefined;
+    user: string | undefined;
+    password: string;
 };
 
 export type Query = string | pgPromise.QueryFile;
