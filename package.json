@@ -7,7 +7,8 @@
     "scripts": {
         "test": "mocha",
         "clean": "rm -rf lib",
-        "build": "npm run clean && tsc",
+        "build": "npm run clean && tsc --build && npm run copy",
+        "copy": "copyfiles -u 1 \"src/**/*.d.ts\" \"lib\"",
         "docker": "docker compose -f testing/docker-compose.yml --project-directory . up -d --build --force-recreate",
         "lint": "tslint -p tsconfig.json",
         "prepare": "npm run build",
@@ -27,6 +28,7 @@
         "@typescript-eslint/eslint-plugin": "^5.39.0",
         "@typescript-eslint/parser": "^5.39.0",
         "chai": "^4.3.7",
+        "copyfiles": "^2.4.1",
         "eslint": "^7.32.0",
         "eslint-config-prettier": "^8.5.0",
         "eslint-plugin-prettier": "^4.2.1",
