@@ -2,10 +2,12 @@ import pgPromise, { IDatabase } from 'pg-promise';
 import chalk from 'chalk';
 import pg from 'pg-promise/typescript/pg-subset';
 
-import type { CleanedConnection, Query } from './types';
+import type { DatabaseConnConfig, Query } from './types';
 
 export default class PostgresClient {
     db: IDatabase<Record<string, unknown>, pg.IClient>;
+    connectionConfig: DatabaseConnConfig;
+    connectionSuccess: boolean;
     query: {
         many: <R>(query: Query) => Promise<R[]>;
         single: <R>(query: Query) => Promise<R>;
@@ -22,12 +24,15 @@ export default class PostgresClient {
         this.db = pgp(connection);
 
         // test connect
-        this.testConnection({
+        this.connectionSuccess = false;
+        this.connectionConfig = {
             host: connection.host,
             user: connection.user,
             port: connection.port,
-            database: connection.database
-        });
+            database: connection.database,
+            password: '##########'
+        };
+        this.testConnection();
 
         // query execution
         this.query = {
@@ -39,7 +44,8 @@ export default class PostgresClient {
     /**
      * Tests if connection to database can be established
      */
-    private async testConnection(conn: CleanedConnection) {
+    async testConnection() {
+        const conn = this.connectionConfig;
         await this.db
             .connect()
             .then((conn) => {
@@ -49,6 +55,7 @@ export default class PostgresClient {
                         `Connected to Database "${client.database}" on ${client.host}:${client.port} with user "${client.user}"`
                     )
                 );
+                this.connectionSuccess = true;
                 return conn.done(true);
             })
             .catch((err) => {
@@ -60,6 +67,7 @@ export default class PostgresClient {
                 );
                 process.exit(1);
             });
+        return this.connectionSuccess;
     }
 
     async runQuery(query: Query) {
