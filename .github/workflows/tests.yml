@@ -16,15 +16,11 @@ jobs:
                     - 18
         env:
             DB_ROOT_PASSWORD: password
-            APP_PORT: 9999
             DB_HOST: localhost
             DB_PORT: 5432
             DB_NAME: app_db
-            DB_SCHEMA: public
-            DB_ADMIN_USER: admin
-            DB_ADMIN_PASSWORD: password
-            DB_APP_USER: app
-            DB_APP_PASSWORD: password
+            DB_USER: admin
+            DB_PASSWORD: password
         steps:
             - uses: actions/checkout@v3
             - name: Use Node.js ${{ matrix.node-version }}
