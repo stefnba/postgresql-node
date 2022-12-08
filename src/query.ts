@@ -1,4 +1,4 @@
-import { IDatabase, IBaseProtocol } from 'pg-promise';
+import { IDatabase } from 'pg-promise';
 import pg from 'pg-promise/typescript/pg-subset';
 
 import { chainQueryParts, pgFormat, pgHelpers } from './utils';
@@ -14,10 +14,7 @@ import type {
 
 export default class PostgresQuery {
     private client: IDatabase<Record<string, unknown>, pg.IClient>;
-    private queryCommand: QueryCommands | undefined;
-    private queryReturnMode: QueryReturnMode;
     private customQueryError: CustomQueryError | undefined;
-    private table: string | undefined;
 
     constructor(
         client: IDatabase<Record<string, unknown>, pg.IClient>,
@@ -25,42 +22,33 @@ export default class PostgresQuery {
     ) {
         this.client = client;
         this.customQueryError = customQueryError;
-        this.queryReturnMode = 'ONE';
     }
 
     /**
      * Run a SELECT query that returns a single row
      */
     async findOne<R>(params: FindQueryParams): Promise<R> {
-        this.queryReturnMode = 'ONE';
         const queryString = pgFormat(params.query, params.params);
-        return this.execute(queryString);
+        return this.execute(queryString, 'ONE');
     }
 
     /**
      * Run a SELECT query that returns multiple rows
      */
     async findMany<R>(params: FindQueryParams): Promise<R[]> {
-        this.queryReturnMode = 'MANY';
         const queryString = pgFormat(params.query, params.params);
-        return this.execute(queryString);
+        return this.execute(queryString, 'MANY');
     }
 
     /**
      * Run a UPDATE query
      */
     async update<R>(params: UpdateQueryParams): Promise<R> {
-        this.queryCommand = 'UPDATE';
-        this.queryReturnMode = 'ONE';
+        const table = params.table;
 
-        const updateQueryString = pgHelpers.update(
-            params.data,
-            null,
-            undefined,
-            {
-                emptyUpdate: null
-            }
-        );
+        const updateQueryString = pgHelpers.update(params.data, null, table, {
+            emptyUpdate: null
+        });
 
         if (!updateQueryString) {
             throw Error('No columns for updating were provided!');
@@ -72,22 +60,16 @@ export default class PostgresQuery {
             { type: 'RETURNING', query: params.returning }
         ]);
 
-        return this.execute(q);
+        return this.execute(q, 'ONE', 'UPDATE', table);
     }
 
     /**
      * Run a CREATE query
      */
     async create<R>(params: CreateQueryParams): Promise<R> {
-        this.queryCommand = 'CREATE';
-        this.queryReturnMode = 'ONE';
-        this.table = params.table;
+        const table = params.table;
 
-        const createQueryString = pgHelpers.insert(
-            params.data,
-            null,
-            this.table
-        );
+        const createQueryString = pgHelpers.insert(params.data, null, table);
 
         if (!createQueryString) {
             throw Error('No columns for creating were provided!');
@@ -99,7 +81,7 @@ export default class PostgresQuery {
             { type: 'RETURNING', query: params.returning }
         ]);
 
-        return this.execute(q);
+        return this.execute(q, 'ONE', 'CREATE', table);
     }
 
     /**
@@ -110,9 +92,8 @@ export default class PostgresQuery {
         params: Record<string, unknown> = {},
         mode: QueryReturnMode = 'ONE'
     ): Promise<R> {
-        this.queryReturnMode = mode;
         const queryString = pgFormat(query, params);
-        return this.execute(queryString);
+        return this.execute(queryString, mode);
     }
 
     /**
@@ -125,18 +106,23 @@ export default class PostgresQuery {
     /**
      * Central method that executes all queries
      */
-    private async execute(query: string) {
+    private async execute(
+        query: string,
+        queryReturnMode: QueryReturnMode,
+        queryCommand: QueryCommands | undefined = undefined,
+        table: string | undefined = undefined
+    ) {
         if (!query || query.trim() === '') {
             // todo throw error
             throw new Error('');
         }
 
         const queryMode =
-            this.queryReturnMode === 'MANY' ? 'manyOrNone' : 'oneOrNone';
+            queryReturnMode === 'MANY' ? 'manyOrNone' : 'oneOrNone';
 
         return this.client[queryMode](query)
             .then((res) => {
-                if (Array.isArray(res) && this.queryReturnMode === 'ONE') {
+                if (Array.isArray(res) && queryReturnMode === 'ONE') {
                     if (res.length === 1) {
                         return res[0];
                     }
@@ -150,8 +136,8 @@ export default class PostgresQuery {
                 if (this.customQueryError) {
                     console.error(err);
                     return this.customQueryError({
-                        table: this.table,
-                        command: this.queryCommand,
+                        table: table,
+                        command: queryCommand,
                         hint: err.hint,
                         position: err.position,
                         message: err.message,

@@ -22,6 +22,7 @@ export type UpdateQueryParams = {
     filter?: string;
     columns?: string[];
     returning?: QueryInputFormat;
+    table?: string;
 };
 export type CreateQueryParams = {
     data: Record<string, unknown>;
