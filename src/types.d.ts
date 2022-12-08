@@ -8,4 +8,38 @@ export type DatabaseConnConfig = {
     password: string;
 };
 
-export type Query = string | pgPromise.QueryFile;
+export type QueryInputFormat = string | pgPromise.QueryFile;
+
+export type FindQueryOptions = {
+    filter?: string;
+    params?: Record<string, unknown>;
+};
+
+export type QueryCommands = 'SELECT' | 'UPDATE' | 'CREATE';
+export type QueryReturnMode = 'MANY' | 'ONE' | 'ANY';
+
+export type ClientInitOptions = {
+    testConnection?: boolean;
+    error?: {
+        query?: CustomQueryError;
+        connect?: CustomConnectError;
+    };
+};
+
+export type CustomQueryError = (err: QueryErrorArgs) => void;
+export type CustomConnectError = (
+    err: QueryConnectArgs,
+    connection: DatabaseConnConfig
+) => void;
+export type QueryErrorArgs = {
+    table: string;
+    command: QueryCommands | undefined;
+    message: string;
+    hint: string;
+    position: number;
+    query: string;
+    error: Error;
+};
+export type QueryConnectArgs = {
+    message: string;
+};
