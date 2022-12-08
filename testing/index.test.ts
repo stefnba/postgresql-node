@@ -8,6 +8,8 @@ const { it, describe } = mocha;
 const { expect } = chai;
 dotenv.config();
 
+const userId = Math.random() * 10000000;
+
 const connection = {
     // user: 'admin',
     // host: 'localhost',
@@ -24,15 +26,26 @@ const connection = {
 
 let db: PostgresClient;
 
-describe('PostgresClient', () => {
+describe('SETUP', () => {
     describe('HOME', () => {
         it('SHOULD connect to database', async () => {
-            db = new PostgresClient(connection);
+            db = new PostgresClient(connection, {
+                error: {
+                    query: (err) => {
+                        console.log('globalError', err);
+                    },
+                    connect: (err, connect) => {
+                        console.log('globalError', err);
+                        console.log('globalError', connect);
+                    }
+                },
+                testConnection: false
+            });
 
             expect(await db.testConnection()).to.be.true;
         });
         it('SHOULD run test query', async () => {
-            const r = await db.query.single<{ now: Date }>('SELECT NOW()');
+            const r = await db.query.run<{ now: Date }>('SELECT NOW()');
             expect(r).to.have.property('now');
         });
         it('SHOULD return connection details', async () => {
@@ -43,5 +56,45 @@ describe('PostgresClient', () => {
             expect(connection).to.have.property('user');
             expect(connection).to.have.property('password');
         });
+    });
+});
+
+describe('RUN', () => {
+    it('SHOULD CREATE a table', async () => {
+        const a = await db.query.run<{ now: Date }>(
+            'CREATE TABLE IF NOT EXISTS users (id int, name varchar, email varchar)',
+            {},
+            'ANY'
+        );
+        console.log('r', a);
+    });
+});
+
+describe('CREATE', () => {
+    it('SHOULD CREATE a test user', async () => {
+        const r = await db.query.create<{ now: Date }>({
+            data: { id: userId, name: 'testUser', email: 'test@mail.com' },
+            table: 'users',
+            returning: '*'
+        });
+        console.log(r);
+    });
+});
+
+describe('FIND MANY', () => {
+    it('SHOULD run test query', async () => {
+        const r = await db.query.findMany<{ now: Date }>({
+            query: 'SELECT * FROM users'
+        });
+        console.log(r);
+    });
+});
+
+describe('FIND ONE', () => {
+    it('SHOULD return one user record', async () => {
+        const r = await db.query.findOne<{ now: Date }>({
+            query: `SELECT * FROM users WHERE id = ${userId}`
+        });
+        console.log(r);
     });
 });
