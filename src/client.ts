@@ -7,7 +7,8 @@ import type {
     DatabaseConnConfig,
     QueryInputFormat,
     ClientInitOptions,
-    ConnectionStatusReturn
+    ConnectionStatusReturn,
+    ConnectionStatusParams
 } from './types';
 
 export default class PostgresClient {
@@ -47,13 +48,15 @@ export default class PostgresClient {
     /**
      * Tests if connection to database can be established
      */
-    async status(log = true): Promise<ConnectionStatusReturn> {
+    async status(
+        options: ConnectionStatusParams = { logging: true }
+    ): Promise<ConnectionStatusReturn> {
         try {
             const connection = await this.db.connect();
             const { client } = connection;
             connection.done(true);
             this.connectionSuccess = true;
-            if (log) {
+            if (options.logging) {
                 console.log(
                     chalk.green(
                         `Connected to Database "${client.database}" on ${client.host}:${client.port} with user "${client.user}"`
@@ -71,16 +74,19 @@ export default class PostgresClient {
                 }
             };
         } catch (err: any) {
-            if (log) {
+            if (options.logging) {
                 console.error(
                     chalk.red(`Database Connection failed (${err.message})`)
                 );
-                console.error(
-                    `User\t\t${this.connectionConfig.user}\nHost\t\t${this.connectionConfig.host}\nPort\t\t${this.connectionConfig.port}\nDatabase\t${this.connectionConfig.database}`
-                );
+                console.error(`Host\t\t${this.connectionConfig.host}`);
+                console.error(`Port\t\t${this.connectionConfig.port}`);
+                console.error(`Database\t${this.connectionConfig.database}`);
+                console.error(`User\t\t${this.connectionConfig.user}`);
+                console.error(`Password\t${this.connectionConfig.password}`);
             }
             return {
                 status: 'FAILED',
+                message: err.message,
                 connection: {
                     host: this.connectionConfig.host,
                     port: this.connectionConfig.port,
@@ -98,15 +104,4 @@ export default class PostgresClient {
     //         columnSets: 333
     //     };
     // }
-
-    async runQuery(query: QueryInputFormat) {
-        return this.db
-            .oneOrNone(query)
-            .then((res) => {
-                return res;
-            })
-            .catch((err) => {
-                console.log('EEE', err);
-            });
-    }
 }
