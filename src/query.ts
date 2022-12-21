@@ -9,8 +9,11 @@ import type {
     QueryReturnMode,
     CustomQueryError,
     CreateQueryParams,
-    UpdateQueryParams
+    UpdateQueryParams,
+    QueryErrorArgs
 } from './types';
+import QueryError from './errors';
+import { QueryErrorCodes } from './constants';
 
 export default class PostgresQuery {
     private client: IDatabase<Record<string, unknown>, pg.IClient>;
@@ -29,7 +32,7 @@ export default class PostgresQuery {
      */
     async findOne<R>(params: FindQueryParams): Promise<R> {
         const queryString = pgFormat(params.query, params.params);
-        return this.execute(queryString, 'ONE');
+        return this.execute(queryString, 'ONE', 'SELECT');
     }
 
     /**
@@ -37,13 +40,14 @@ export default class PostgresQuery {
      */
     async findMany<R>(params: FindQueryParams): Promise<R[]> {
         const queryString = pgFormat(params.query, params.params);
-        return this.execute(queryString, 'MANY');
+        return this.execute(queryString, 'MANY', 'SELECT');
     }
 
     /**
      * Run a UPDATE query
      */
     async update<R>(params: UpdateQueryParams): Promise<R> {
+        const command = 'UPDATE';
         const table = params.table;
 
         const updateQueryString = pgHelpers.update(params.data, null, table, {
@@ -51,7 +55,13 @@ export default class PostgresQuery {
         });
 
         if (!updateQueryString) {
-            throw Error('No columns for updating were provided!');
+            this.throwError({
+                code: QueryErrorCodes.NoUpdateColumns,
+                message: 'No columns for updating were provided',
+                command,
+                table,
+                query: ''
+            });
         }
 
         const q = chainQueryParts([
@@ -60,7 +70,7 @@ export default class PostgresQuery {
             { type: 'RETURNING', query: params.returning }
         ]);
 
-        return this.execute(q, 'ONE', 'UPDATE', table);
+        return this.execute(q, 'ONE', command, table);
     }
 
     /**
@@ -113,64 +123,80 @@ export default class PostgresQuery {
         table: string | undefined = undefined
     ) {
         if (!query || query.trim() === '') {
-            // todo throw error
-            throw new Error('');
+            return this.throwError({
+                command: queryCommand,
+                query,
+                table,
+                code: QueryErrorCodes.EmptyQuery,
+                message: 'An empty query was provided'
+            });
         }
 
-        const queryMode =
-            queryReturnMode === 'MANY' ? 'manyOrNone' : 'oneOrNone';
-
-        return this.client[queryMode](query)
+        return this.client
+            .any(query)
             .then((res) => {
+                // console.log(query, queryReturnMode, res);
                 if (Array.isArray(res) && queryReturnMode === 'ONE') {
+                    // not results found
+                    if (res.length === 0) {
+                        return null;
+                    }
+                    // return single record as object, not array
                     if (res.length === 1) {
                         return res[0];
                     }
+                    // Multiple rows error
+                    return this.throwError({
+                        command: queryCommand,
+                        query,
+                        table,
+                        code: QueryErrorCodes.MultipleRowsReturned,
+                        message:
+                            "Multiple rows were not expected for query return mode 'ONE'"
+                    });
                 }
                 return res;
             })
             .catch((err) => {
                 // Constraint error
+                if ('constraint' in err && err.constraint) {
+                    return this.throwError({
+                        table,
+                        command: queryCommand,
+                        message: err.message,
+                        query: query,
+                        cause: err,
+                        hint: `constraint ${err.constraint}: ${err.detail}`,
+                        code: QueryErrorCodes.ConstraintViolation
+                    });
+                }
+
+                // prevent double error from MultipleRowsReturned
+                if (err instanceof QueryError) throw err;
 
                 // Generic error
-                if (this.customQueryError) {
-                    console.error(err);
-                    return this.customQueryError({
-                        table: table,
-                        command: queryCommand,
-                        hint: err.hint,
-                        position: err.position,
-                        message: err.message,
-                        query: 'asdfsdaf',
-                        cause: err
-                    });
-                } else {
-                    console.error(err);
-                }
-                throw new Error('QUERY_ERROR');
+                return this.throwError({
+                    table,
+                    command: queryCommand,
+                    hint: err.hint,
+                    position: err.position,
+                    code: QueryErrorCodes.ExecutionError,
+                    message: err.message,
+                    query: query,
+                    cause: err
+                });
             });
+    }
 
-        // try {
-        //     // mode many result
-        //     if (this.queryReturnMode === 'MANY') {
-        //         return this.client.manyOrNone(query);
-        //     }
-
-        //     // mode one result
-        //     return this.client.oneOrNone(query);
-        // } catch (err) {
-        //     console.log(err.hint);
-        //     if (err instanceof Error) {
-        //         console.log(err.message);
-        //         throw new Error('QUERY_ERROR');
-        //     }
-        // }
-        // log query error if no custom method was provided in InitOptions
-        // if (err instance of Error) {
-
-        // }
-        // console.log(err)
-
-        // }
+    /**
+     * Throws QueryError directly or customQueryError if method is provided upon setup
+     * @param options
+     * @returns
+     */
+    private throwError(options: QueryErrorArgs) {
+        if (this.customQueryError) {
+            return this.customQueryError(options);
+        }
+        throw new QueryError(options);
     }
 }
