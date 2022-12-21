@@ -1,4 +1,5 @@
 import pgPromise from 'pg-promise';
+import { QueryErrorCodes } from './constants';
 import { filterOperators } from './filter';
 
 // Client
@@ -11,7 +12,11 @@ export type DatabaseConnConfig = {
 };
 export type ConnectionStatusReturn = {
     status: 'CONNECTED' | 'FAILED' | 'CONNECTING';
+    message?: string;
     connection: DatabaseConnConfig;
+};
+export type ConnectionStatusParams = {
+    logging: boolean;
 };
 
 // Query
@@ -75,8 +80,9 @@ export type QueryErrorArgs = {
     table: string | undefined;
     command: QueryCommands | undefined;
     message: string;
-    hint: string;
-    position: number;
+    hint?: string;
     query: string;
-    cause: Error;
+    code: QueryErrorCodes;
+    position?: number;
+    cause?: Error;
 };
