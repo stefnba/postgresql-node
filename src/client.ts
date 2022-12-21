@@ -6,11 +6,12 @@ import PostgresQuery from './query';
 import type {
     DatabaseConnConfig,
     QueryInputFormat,
-    ClientInitOptions
+    ClientInitOptions,
+    ConnectionStatusReturn
 } from './types';
 
 export default class PostgresClient {
-    db: IDatabase<Record<string, unknown>, pg.IClient>;
+    private db: IDatabase<Record<string, unknown>, pg.IClient>;
     connectionConfig: DatabaseConnConfig;
     connectionSuccess: boolean;
     query: PostgresQuery;
@@ -32,44 +33,71 @@ export default class PostgresClient {
             user: connection.user,
             port: connection.port,
             database: connection.database,
-            password: '##########'
+            password: '##########' // hide password
         };
         if (options?.testConnection) {
-            this.testConnection();
+            this.status();
         }
 
         // query execution
         this.query = new PostgresQuery(this.db, options.error?.query);
+        // this.Suite: PostgresQuery;
     }
 
     /**
      * Tests if connection to database can be established
      */
-    async testConnection() {
-        const conn = this.connectionConfig;
-        await this.db
-            .connect()
-            .then((conn) => {
-                const { client } = conn;
+    async status(log = true): Promise<ConnectionStatusReturn> {
+        try {
+            const connection = await this.db.connect();
+            const { client } = connection;
+            connection.done(true);
+            this.connectionSuccess = true;
+            if (log) {
                 console.log(
                     chalk.green(
                         `Connected to Database "${client.database}" on ${client.host}:${client.port} with user "${client.user}"`
                     )
                 );
-                this.connectionSuccess = true;
-                return conn.done(true);
-            })
-            .catch((err) => {
+            }
+            return {
+                status: 'CONNECTED',
+                connection: {
+                    host: this.connectionConfig.host,
+                    port: this.connectionConfig.port,
+                    database: this.connectionConfig.database,
+                    user: this.connectionConfig.user,
+                    password: this.connectionConfig.password
+                }
+            };
+        } catch (err: any) {
+            if (log) {
                 console.error(
                     chalk.red(`Database Connection failed (${err.message})`)
                 );
                 console.error(
-                    `User\t\t${conn.user}\nHost\t\t${conn.host}\nPort\t\t${conn.port}\nDatabase\t${conn.database}`
+                    `User\t\t${this.connectionConfig.user}\nHost\t\t${this.connectionConfig.host}\nPort\t\t${this.connectionConfig.port}\nDatabase\t${this.connectionConfig.database}`
                 );
-                process.exit(1);
-            });
-        return this.connectionSuccess;
+            }
+            return {
+                status: 'FAILED',
+                connection: {
+                    host: this.connectionConfig.host,
+                    port: this.connectionConfig.port,
+                    database: this.connectionConfig.database,
+                    user: this.connectionConfig.user,
+                    password: this.connectionConfig.password
+                }
+            };
+        }
     }
+
+    // Suite() {
+    //     return {
+    //         filterSets: 222,
+    //         columnSets: 333
+    //     };
+    // }
 
     async runQuery(query: QueryInputFormat) {
         return this.db

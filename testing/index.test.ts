@@ -30,19 +30,26 @@ describe('SETUP', () => {
     describe('HOME', () => {
         it('SHOULD connect to database', async () => {
             db = new PostgresClient(connection, {
-                error: {
-                    query: (err) => {
-                        console.log('globalError', err);
-                    },
-                    connect: (err, connect) => {
-                        console.log('globalError', err);
-                        console.log('globalError', connect);
-                    }
-                },
+                // error: {
+                //     query: (err) => {
+                //         console.log('globalError', err);
+                //     },
+                //     connect: (err, connect) => {
+                //         console.log('globalError', err);
+                //         console.log('globalError', connect);
+                //     }
+                // },
                 testConnection: false
             });
 
-            expect(await db.testConnection()).to.be.true;
+            const status = await db.status(false);
+            expect(status).to.have.property('status');
+            expect(status.status).to.equal('CONNECTED');
+            expect(status).to.have.property('connection');
+            expect(status.connection).to.have.property('host');
+            expect(status.connection).to.have.property('port');
+            expect(status.connection).to.have.property('user');
+            expect(status.connection).to.have.property('database');
         });
         it('SHOULD run test query', async () => {
             const r = await db.query.run<{ now: Date }>('SELECT NOW()');
@@ -61,12 +68,11 @@ describe('SETUP', () => {
 
 describe('RUN', () => {
     it('SHOULD CREATE a table', async () => {
-        const a = await db.query.run<{ now: Date }>(
+        await db.query.run<{ now: Date }>(
             'CREATE TABLE IF NOT EXISTS users (id int, name varchar, email varchar)',
             {},
             'ANY'
         );
-        console.log('r', a);
     });
 });
 
@@ -77,16 +83,25 @@ describe('CREATE', () => {
             table: 'users',
             returning: '*'
         });
-        console.log(r);
     });
+    // it('SHOULD CREATE multiple users', async () => {
+    //     const r = await db.query.create<{ now: Date }>({
+    //         data: [
+    //             { id: userId, name: 'testUser', email: 'test@mail.com' },
+    //             { id: userId + 1, name: 'testUser', email: 'test@mail.com' }
+    //         ],
+    //         table: 'users',
+    //         returning: '*'
+    //     });
+    //     console.log(r);
+    // });
 });
 
 describe('FIND MANY', () => {
-    it('SHOULD run test query', async () => {
+    it('SHOULD LIST many users', async () => {
         const r = await db.query.findMany<{ now: Date }>({
             query: 'SELECT * FROM users'
         });
-        console.log(r);
     });
 });
 
@@ -96,5 +111,26 @@ describe('FIND ONE', () => {
             query: `SELECT * FROM users WHERE id = ${userId}`
         });
         console.log(r);
+    });
+    // it('SHOULD fail due to multiple users returned', async () => {
+    //     expect(
+    //         await db.query.findOne<{ now: Date }>({
+    //             query: 'SELECT * FROM users'
+    //         })
+    //     ).to.throw();
+    // });
+    it('SHOULD throw query error', async () => {
+        const func = async () => {
+            try {
+                await db.query.findOne({
+                    query: 'SELECT *FROM users'
+                });
+            } catch {
+                throw new Error();
+            }
+        };
+        // https://stackoverflow.com/questions/63511399/mocha-assert-asynchronous-function-throws-exception
+        console.log(func());
+        expect(() => func()).to.throw();
     });
 });

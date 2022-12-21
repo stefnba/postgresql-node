@@ -9,6 +9,10 @@ export type DatabaseConnConfig = {
     user: string | undefined;
     password: string;
 };
+export type ConnectionStatusReturn = {
+    status: 'CONNECTED' | 'FAILED' | 'CONNECTING';
+    connection: DatabaseConnConfig;
+};
 
 // Query
 export type QueryInputFormat = string | pgPromise.QueryFile;
@@ -58,6 +62,8 @@ export type FilterOperatorParams = {
     alias: string;
 };
 export type FilterOperators = keyof typeof filterOperators;
+
+// Pagination
 
 // Errors
 export type CustomQueryError = (err: QueryErrorArgs) => void;
