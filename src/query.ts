@@ -158,7 +158,7 @@ export default class PostgresQuery {
                 return res;
             })
             .catch((err) => {
-                // Constraint error
+                // Constraint error, e.g. unique constraint
                 if ('constraint' in err && err.constraint) {
                     return this.throwError({
                         table,
@@ -167,6 +167,19 @@ export default class PostgresQuery {
                         query: query,
                         cause: err,
                         hint: `constraint ${err.constraint}: ${err.detail}`,
+                        code: QueryErrorCodes.ConstraintViolation
+                    });
+                }
+
+                //
+                if (err.message.includes('violates not-null constraint')) {
+                    return this.throwError({
+                        table,
+                        command: queryCommand,
+                        message: err.message,
+                        query: query,
+                        cause: err,
+                        hint: `not-null constraint in column "${err.column}"`,
                         code: QueryErrorCodes.ConstraintViolation
                     });
                 }

@@ -176,7 +176,7 @@ describe('SETUP', () => {
 describe('RUN', () => {
     it('SHOULD CREATE a table', async () => {
         await db.query.run(
-            'CREATE TABLE IF NOT EXISTS users (id int UNIQUE, name varchar, email varchar)',
+            'CREATE TABLE IF NOT EXISTS users (id int UNIQUE NOT NULL, name varchar NOT NULL, email varchar NOT NULL)',
             {},
             'ANY'
         );
@@ -224,7 +224,7 @@ describe('CREATE', () => {
             returning: '*'
         });
 
-        // query.catch((err) => console.log(err));
+        query.catch((err) => console.log(err));
 
         await expect(query).to.be.eventually.rejected.and.has.property('code');
         await expect(query)
@@ -233,6 +233,21 @@ describe('CREATE', () => {
         await expect(query).to.be.rejectedWith(
             'duplicate key value violates unique constraint'
         );
+    });
+    it('SHOULD THROW ERROR due to missing required column', async () => {
+        const query = db.query.create<UserModel>({
+            data: { name: 'testUser', email: 'test@mail.com' },
+            table: 'users',
+            returning: '*'
+        });
+
+        // query.catch((err) => console.log(err));
+
+        await expect(query).to.be.eventually.rejected.and.has.property('code');
+        await expect(query)
+            .to.be.eventually.rejected.and.property('code')
+            .to.equal('ConstraintViolation');
+        await expect(query).to.be.rejectedWith('violates not-null constraint');
     });
 });
 
@@ -287,6 +302,21 @@ describe('FIND ONE', () => {
         });
 
         // query.catch((err) => console.log(err));
+
+        await expect(query).to.be.eventually.rejected.and.has.property('code');
+        await expect(query)
+            .to.be.eventually.rejected.and.property('code')
+            .to.equal('ExecutionError');
+        await expect(query).to.be.rejectedWith(
+            'relation "users11" does not exist'
+        );
+    });
+    it('SHOULD THROW ERROR due to non-existent column', async () => {
+        const query = db.query.findMany<UserModel>({
+            query: 'SELECT id, pasta FROM users'
+        });
+
+        query.catch((err) => console.log(err));
 
         await expect(query).to.be.eventually.rejected.and.has.property('code');
         await expect(query)
