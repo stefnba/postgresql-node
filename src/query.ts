@@ -32,7 +32,11 @@ export default class PostgresQuery {
      */
     async findOne<R>(params: FindQueryParams): Promise<R> {
         const queryString = pgFormat(params.query, params.params);
-        return this.execute(queryString, 'ONE', 'SELECT');
+        const q = chainQueryParts([
+            queryString,
+            { type: 'WHERE', query: params.filter }
+        ]);
+        return this.execute(q, 'ONE', 'SELECT');
     }
 
     /**
@@ -40,7 +44,11 @@ export default class PostgresQuery {
      */
     async findMany<R>(params: FindQueryParams): Promise<R[]> {
         const queryString = pgFormat(params.query, params.params);
-        return this.execute(queryString, 'MANY', 'SELECT');
+        const q = chainQueryParts([
+            queryString,
+            { type: 'WHERE', query: params.filter }
+        ]);
+        return this.execute(q, 'MANY', 'SELECT');
     }
 
     /**
@@ -182,6 +190,8 @@ export default class PostgresQuery {
                 message: 'An empty query was provided'
             });
         }
+
+        console.log(query);
 
         return this.client
             .any(query)
