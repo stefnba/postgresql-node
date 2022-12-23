@@ -4,14 +4,11 @@ import pg from 'pg-promise/typescript/pg-subset';
 
 import PostgresQuery from './query';
 import type {
-    QuerySuiteConfig,
-    QuerySuite,
     DatabaseConnConfig,
     ClientInitOptions,
     ConnectionStatusReturn,
     ConnectionStatusParams
 } from './types';
-import PostgresQuerySuite from './suite';
 
 export default class PostgresClient {
     private db: IDatabase<Record<string, unknown>, pg.IClient>;
@@ -97,20 +94,5 @@ export default class PostgresClient {
                 }
             };
         }
-    }
-
-    /**
-     * Configures and exposes a new QuerySuite
-     */
-    createQuerySuite<M>(table: string) {
-        return <C extends QuerySuiteConfig<M>>(config: C): QuerySuite<M, C> => {
-            const suite = new PostgresQuerySuite<M>(table, config);
-
-            return {
-                table: suite.table,
-                columns: suite.columns,
-                queries: suite.queries
-            } as any;
-        };
     }
 }
