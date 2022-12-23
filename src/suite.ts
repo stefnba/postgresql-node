@@ -1,62 +1,75 @@
 import path from 'path';
 import { QueryFile } from 'pg-promise';
 
+import { filterOperators } from './filter';
+
 import type {
-    QuerySuiteConfig,
-    QuerySuiteColumns,
-    ColumnSetsInput,
-    QuerySetsInput
+    ColumnSets,
+    ColumnSetsParams,
+    QuerySetsParams,
+    QuerySets,
+    FilterSetsParams
 } from './types';
 import { pgHelpers } from './utils';
 
-export default class PostgresQuerySuite<M> {
+export default class QuerySuite<M> {
     table: string;
-    columns: object;
-    queries: object;
 
-    constructor(table: string, config: QuerySuiteConfig<M>) {
+    constructor(table: string) {
         this.table = table;
-        this.columns = this.prepareColumnSets(config.columnSets);
-        this.queries = this.prepareQuerySets(config.querySets);
     }
 
     /**
-     * Register QuerySets
+     * Returns filter function that
      */
-    private prepareQuerySets(querySets: QuerySetsInput | undefined) {
-        if (!querySets) return {};
-        const { path: location, queries } = querySets;
-        const fullDirPath = Array.isArray(location)
-            ? path.join(...location)
-            : location;
+    filterSets<T extends FilterSetsParams<M>>(filterSets: T) {
+        return (filters: Record<string, unknown>) => {
+            const appliedFilters = Object.entries(filters).map(
+                ([filterKey, filterValue]) => {
+                    // filterKey is allowed to be used
+                    if (filterKey in filterSets) {
+                        // filters with value undefined are ignored
+                        if (filterValue === undefined) {
+                            return;
+                        }
 
-        return Object.entries(queries).reduce(
-            (prev, [file, queryFileLocation]) => {
-                const fullPath = path.join(fullDirPath, queryFileLocation);
-                const qf = new QueryFile(fullPath);
+                        const filterConfig = filterSets[filterKey];
+                        if (filterConfig) {
+                            return {
+                                filter: filterKey,
+                                value: filterValue,
+                                operator: filterConfig.operator,
+                                sql: filterOperators[filterConfig.operator]({
+                                    alias: filterConfig.alias || this.table,
+                                    column: filterConfig.column,
+                                    value: filterValue
+                                })
+                            };
+                        }
+                    }
+                    return;
+                }
+            );
 
-                // todo check for read error
-                return { ...prev, [file]: qf };
-            },
-            {}
-        );
+            if (appliedFilters.length === 0) return '';
+            return appliedFilters
+                .filter((f) => f !== undefined)
+                .map((f) => f?.sql)
+                .join(' AND ');
+        };
     }
 
     /**
-     * Register ColumnSets
+     * Creates a new ColumnSet object to limit columns that can be used in update and create queries
      */
-    private prepareColumnSets(columnSets: ColumnSetsInput<M> | undefined) {
-        if (!columnSets) return {};
-
+    columnSets<T extends ColumnSetsParams<M>>(columnSets: T): ColumnSets<T> {
         return Object.entries(columnSets).reduce((prev, [query, cols]) => {
             const columns = cols.map((col) => {
                 if (typeof col === 'string') {
                     return col;
                 }
-
                 if (typeof col === 'object' && 'optional' in col) {
                     const { optional, ...rest } = col as { optional: boolean };
-
                     if (optional) {
                         return {
                             ...rest,
@@ -65,7 +78,6 @@ export default class PostgresQuerySuite<M> {
                     }
                     return rest;
                 }
-
                 return col;
             });
             return {
@@ -74,6 +86,32 @@ export default class PostgresQuerySuite<M> {
                     table: this.table
                 })
             };
-        }, {});
+        }, {} as ColumnSets<T>);
+    }
+
+    /**
+     * Creates a new querySet object that return QueryFiles that can be used to run queries
+     */
+    querySets<T extends QuerySetsParams>(
+        querySets: T,
+        baseDir: string | Array<string> = process.cwd()
+    ): QuerySets<T> {
+        const fullDirPath = Array.isArray(baseDir)
+            ? path.join(...baseDir)
+            : baseDir;
+
+        console.log(fullDirPath);
+
+        return Object.entries(querySets).reduce(
+            (acc, [queryKey, queryFileLocation]) => {
+                const fullPath = path.join(fullDirPath, queryFileLocation);
+                const qf = new QueryFile(fullPath);
+                return {
+                    ...acc,
+                    [queryKey]: qf
+                };
+            },
+            {} as QuerySets<T>
+        );
     }
 }

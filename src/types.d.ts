@@ -1,4 +1,4 @@
-import pgPromise from 'pg-promise';
+import pgPromise, { QueryFile } from 'pg-promise';
 import { QueryErrorCodes } from './constants';
 import { filterOperators } from './filter';
 
@@ -87,43 +87,12 @@ export type QueryErrorArgs = {
     cause?: Error;
 };
 
-// Suite setup
-export type QuerySuiteConfig<M> = {
-    querySets?: QueryFileArgs;
-    columnSets?: ColumnSetsInput<M>;
-    filterSets?: FilterArgs<M>;
-};
-export type QueryFileArgs = {
-    path: string | Array<string>;
-    queries: Record<string, string>;
-};
-export type ColumnSetsInput<M> = Record<string, Array<keyof M>>;
-export type QuerySetsInput = {
-    path: string | Array<string>;
-    queries: Record<string, string>;
-};
-export type FilterArgs<M> = Record<string, keyof M>;
-
-// Suite
-export type QuerySuite<M, T extends QuerySuiteConfig<M>> = {
-    /**
-     * Table name
-     */
-    table: { name: string; columns: keyof M };
-    /**
-     * Available columns
-     */
-    columns: Record<keyof T['columnSets'], string>;
-    /**
-     * Available queries
-     */
-    queries: T['querySets'] extends QueryFileArgs
-        ? Record<keyof T['querySets']['queries'], QueryInputFormat>
-        : never;
-
-    /**
-     *
-     */
-    run: string;
-};
-export type QuerySuiteColumns = Record<string, string>;
+// QuerySuite
+export type ColumnSetsParams<M> = Record<string, Array<keyof M>>;
+export type ColumnSets<T> = Record<keyof T, string>;
+export type QuerySetsParams = Record<string, string>;
+export type QuerySets<T> = Record<keyof T, QueryFile>;
+export type FilterSetsParams<M> = Record<
+    string,
+    { column: keyof M; operator: FilterOperators; alias?: string }
+>;

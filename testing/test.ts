@@ -1,6 +1,6 @@
 import dotenv from 'dotenv';
 
-import PostgresClient from '../src';
+import PostgresClient, { QuerySuite } from '../src';
 
 dotenv.config();
 
@@ -21,21 +21,45 @@ type UserModel = {
 
 const db = new PostgresClient(connection);
 
-const userQuerySuite = db.createQuerySuite<UserModel>('users');
+const userQuerySuite = new QuerySuite<UserModel>('users');
 
-const { columns, queries, table, run } = userQuerySuite({
-    columnSets: {
-        update: ['email'],
-        create: ['id', 'name']
-    },
-    querySets: {
-        path: [__dirname, 'db/queryFiles'],
-        queries: {
-            update: 'test.sql'
-        }
-    }
+const cs = userQuerySuite.columnSets({
+    update: ['email'],
+    create: ['name', 'id']
 });
 
-console.log(queries);
-console.log(table);
-console.log(columns);
+const queries = userQuerySuite.querySets(
+    {
+        test: 'test.sql'
+    },
+    [__dirname, 'db/queryFiles']
+);
+
+const filters = userQuerySuite.filterSets({
+    id: { column: 'id', operator: 'EQUAL' },
+    email: { column: 'name', operator: 'INCLUDES', alias: 'users' }
+});
+
+// console.log(queries);
+// console.log(cs);
+// console.log(filters({ id: 'dd', asd: 1111, email: [1, 2] }));
+
+// const q = userQuerySuite.db()
+
+const run = async () => {
+    const queryPortfolio = {
+        list: () =>
+            db.query.findMany<UserModel>({
+                query: queries.test,
+                filter: filters({ id: 9569721 })
+            })
+        // create: ({ data }) =>
+        //     db.query.create<UserModel>({ data, columns: cs.create })
+    };
+
+    const r = await queryPortfolio.list();
+
+    console.log(r.map((r) => r.email));
+};
+
+run();
