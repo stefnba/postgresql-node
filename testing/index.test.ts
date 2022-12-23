@@ -204,18 +204,16 @@ describe('CREATE', () => {
         expect(r).to.have.keys(['id', 'name', 'email']);
     });
     it('SHOULD CREATE multiple test users', async () => {
-        const r = await db.query.create<UserModel>({
-            data: { id: userId + 1, name: 'testUser', email: 'test@mail.com' },
+        const r = await db.query.createMany<UserModel>({
+            data: [
+                { id: userId + 1, name: 'testUser', email: 'test@mail.com' },
+                { id: userId + 2, name: 'testUser', email: 'test@mail.com' }
+            ],
             table: 'users',
             returning: '*'
         });
-        const rr = await db.query.create<UserModel>({
-            data: { id: userId + 2, name: 'testUser', email: 'test@mail.com' },
-            table: 'users',
-            returning: '*'
-        });
-        expect(r).to.have.keys(['id', 'name', 'email']);
-        expect(rr).to.have.keys(['id', 'name', 'email']);
+        expect(r).to.be.an('array');
+        expect(r[0]).to.have.keys(['id', 'name', 'email']);
     });
     it('SHOULD THROW ERROR due to unique constraint', async () => {
         const query = db.query.create<UserModel>({
@@ -322,9 +320,7 @@ describe('FIND ONE', () => {
         await expect(query)
             .to.be.eventually.rejected.and.property('code')
             .to.equal('ExecutionError');
-        await expect(query).to.be.rejectedWith(
-            'relation "users11" does not exist'
-        );
+        await expect(query).to.be.rejectedWith('column "pasta" does not exist');
     });
 });
 

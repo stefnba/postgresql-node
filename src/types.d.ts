@@ -34,7 +34,7 @@ export type UpdateQueryParams = {
     table?: string;
 };
 export type CreateQueryParams = {
-    data: Record<string, unknown>;
+    data: Record<string, unknown> | Record<string, unknown>[];
     columns?: string[];
     returning?: QueryInputFormat;
     conflict?: QueryInputFormat;
@@ -86,3 +86,44 @@ export type QueryErrorArgs = {
     position?: number;
     cause?: Error;
 };
+
+// Suite setup
+export type QuerySuiteConfig<M> = {
+    querySets?: QueryFileArgs;
+    columnSets?: ColumnSetsInput<M>;
+    filterSets?: FilterArgs<M>;
+};
+export type QueryFileArgs = {
+    path: string | Array<string>;
+    queries: Record<string, string>;
+};
+export type ColumnSetsInput<M> = Record<string, Array<keyof M>>;
+export type QuerySetsInput = {
+    path: string | Array<string>;
+    queries: Record<string, string>;
+};
+export type FilterArgs<M> = Record<string, keyof M>;
+
+// Suite
+export type QuerySuite<M, T extends QuerySuiteConfig<M>> = {
+    /**
+     * Table name
+     */
+    table: { name: string; columns: keyof M };
+    /**
+     * Available columns
+     */
+    columns: Record<keyof T['columnSets'], string>;
+    /**
+     * Available queries
+     */
+    queries: T['querySets'] extends QueryFileArgs
+        ? Record<keyof T['querySets']['queries'], QueryInputFormat>
+        : never;
+
+    /**
+     *
+     */
+    run: string;
+};
+export type QuerySuiteColumns = Record<string, string>;

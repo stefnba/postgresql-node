@@ -74,6 +74,36 @@ export default class PostgresQuery {
     }
 
     /**
+     * Run a UPDATE query that changes multiple records
+     */
+    async updateMany<R>(params: UpdateQueryParams): Promise<R[]> {
+        const command = 'UPDATE';
+        const table = params.table;
+
+        const updateQueryString = pgHelpers.update(params.data, null, table, {
+            emptyUpdate: null
+        });
+
+        if (!updateQueryString) {
+            this.throwError({
+                code: QueryErrorCodes.NoUpdateColumns,
+                message: 'No columns for updating were provided',
+                command,
+                table,
+                query: ''
+            });
+        }
+
+        const q = chainQueryParts([
+            updateQueryString,
+            { type: 'WHERE', query: params.filter },
+            { type: 'RETURNING', query: params.returning }
+        ]);
+
+        return this.execute(q, 'MANY', command, table);
+    }
+
+    /**
      * Run a CREATE query
      */
     async create<R>(params: CreateQueryParams): Promise<R> {
@@ -92,6 +122,27 @@ export default class PostgresQuery {
         ]);
 
         return this.execute(q, 'ONE', 'CREATE', table);
+    }
+
+    /**
+     * Run a CREATE query that creates multiple records
+     */
+    async createMany<R>(params: CreateQueryParams): Promise<R[]> {
+        const table = params.table;
+
+        const createQueryString = pgHelpers.insert(params.data, null, table);
+
+        if (!createQueryString) {
+            throw Error('No columns for creating were provided!');
+        }
+
+        const q = chainQueryParts([
+            createQueryString,
+            { type: 'CONFLICT', query: params.conflict },
+            { type: 'RETURNING', query: params.returning }
+        ]);
+
+        return this.execute(q, 'ANY', 'CREATE', table);
     }
 
     /**
