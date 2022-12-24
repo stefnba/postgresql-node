@@ -102,6 +102,6 @@ export type FilterSetsParams<M> = Record<
 >;
 
 // ColumnSets
-export type ColumnSet<M = object> =
-    | Array<keyof M>
-    | Array<{ name: keyof M; optional: boolean }>;
+export type ColumnSet<M = undefined> = M extends undefined
+    ? Array<string | { name: string; optional: boolean }>
+    : Array<{ name: keyof M; optional: boolean } | keyof M>;
