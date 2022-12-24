@@ -9,9 +9,11 @@ import type {
     ConnectionStatusReturn,
     ConnectionStatusParams
 } from './types';
+import QuerySuite from './suite';
 
 export default class PostgresClient {
     private db: IDatabase<Record<string, unknown>, pg.IClient>;
+    private initOptions: ClientInitOptions;
     connectionConfig: DatabaseConnConfig;
     connectionSuccess: boolean;
     query: PostgresQuery;
@@ -25,6 +27,7 @@ export default class PostgresClient {
         // init
         const pgp = pgPromise();
         this.db = pgp(connection);
+        this.initOptions = options;
 
         // test connect
         this.connectionSuccess = false;
@@ -40,7 +43,9 @@ export default class PostgresClient {
         }
 
         // query execution
-        this.query = new PostgresQuery(this.db, options.error?.query);
+        this.query = new PostgresQuery(this.db, {
+            queryError: options.error?.query
+        });
     }
 
     /**
@@ -94,5 +99,18 @@ export default class PostgresClient {
                 }
             };
         }
+    }
+
+    newQuerySuite<M>(table: string) {
+        const query = new PostgresQuery(this.db, {
+            queryError: this.initOptions.error?.query,
+            table
+        });
+
+        const suite = new QuerySuite<M>(table);
+        return {
+            config: suite,
+            query
+        };
     }
 }

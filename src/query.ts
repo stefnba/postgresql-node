@@ -10,7 +10,8 @@ import type {
     CustomQueryError,
     CreateQueryParams,
     UpdateQueryParams,
-    QueryErrorArgs
+    QueryErrorArgs,
+    QueryInitConfig
 } from './types';
 import QueryError from './errors';
 import { QueryErrorCodes } from './constants';
@@ -18,17 +19,19 @@ import { QueryErrorCodes } from './constants';
 export default class PostgresQuery {
     private client: IDatabase<Record<string, unknown>, pg.IClient>;
     private customQueryError: CustomQueryError | undefined;
+    private table: string | undefined;
 
     constructor(
         client: IDatabase<Record<string, unknown>, pg.IClient>,
-        customQueryError: CustomQueryError | undefined
+        config: QueryInitConfig
     ) {
+        this.table = config.table;
         this.client = client;
-        this.customQueryError = customQueryError;
+        this.customQueryError = config.queryError;
     }
 
     /**
-     * Run a SELECT query that returns a single row
+     * Run a SELECT query that returns a single record
      */
     async findOne<R>(params: FindQueryParams): Promise<R> {
         const queryString = pgFormat(params.query, params.params);
@@ -40,7 +43,7 @@ export default class PostgresQuery {
     }
 
     /**
-     * Run a SELECT query that returns multiple rows
+     * Run a SELECT query that returns multiple record
      */
     async findMany<R>(params: FindQueryParams): Promise<R[]> {
         const queryString = pgFormat(params.query, params.params);
@@ -52,11 +55,13 @@ export default class PostgresQuery {
     }
 
     /**
-     * Run a UPDATE query
+     * Run a UPDATE query that changes a single record
      */
-    async update<R>(params: UpdateQueryParams): Promise<R> {
+    async updateOne<R>(params: UpdateQueryParams): Promise<R> {
         const command = 'UPDATE';
-        const table = params.table;
+        const table = params.table || this.table;
+
+        // todo table empty error
 
         const updateQueryString = pgHelpers.update(params.data, null, table, {
             emptyUpdate: null
@@ -86,7 +91,9 @@ export default class PostgresQuery {
      */
     async updateMany<R>(params: UpdateQueryParams): Promise<R[]> {
         const command = 'UPDATE';
-        const table = params.table;
+        const table = params.table || this.table;
+
+        // todo table empty error
 
         const updateQueryString = pgHelpers.update(params.data, null, table, {
             emptyUpdate: null
@@ -114,8 +121,11 @@ export default class PostgresQuery {
     /**
      * Run a CREATE query
      */
-    async create<R>(params: CreateQueryParams): Promise<R> {
-        const table = params.table;
+    async createOne<R>(params: CreateQueryParams): Promise<R> {
+        const command = 'CREATE';
+        const table = params.table || this.table;
+
+        // todo table empty error
 
         const createQueryString = pgHelpers.insert(params.data, null, table);
 
@@ -129,14 +139,17 @@ export default class PostgresQuery {
             { type: 'RETURNING', query: params.returning }
         ]);
 
-        return this.execute(q, 'ONE', 'CREATE', table);
+        return this.execute(q, 'ONE', command, table);
     }
 
     /**
      * Run a CREATE query that creates multiple records
      */
     async createMany<R>(params: CreateQueryParams): Promise<R[]> {
-        const table = params.table;
+        const command = 'CREATE';
+        const table = params.table || this.table;
+
+        // todo table empty error
 
         const createQueryString = pgHelpers.insert(params.data, null, table);
 
@@ -150,7 +163,7 @@ export default class PostgresQuery {
             { type: 'RETURNING', query: params.returning }
         ]);
 
-        return this.execute(q, 'ANY', 'CREATE', table);
+        return this.execute(q, 'ANY', command, table);
     }
 
     /**

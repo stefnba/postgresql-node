@@ -1,5 +1,6 @@
 import path from 'path';
 import { QueryFile } from 'pg-promise';
+import PostgresClient from './client';
 
 import { filterOperators } from './filter';
 

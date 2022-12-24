@@ -18,8 +18,19 @@ export type ConnectionStatusReturn = {
 export type ConnectionStatusParams = {
     logging: boolean;
 };
+export type ClientInitOptions = {
+    testConnection?: boolean;
+    error?: {
+        query?: CustomQueryError;
+        connect?: CustomConnectError;
+    };
+};
 
 // Query
+export type QueryInitConfig = {
+    queryError?: CustomQueryError;
+    table?: string;
+};
 export type QueryInputFormat = string | pgPromise.QueryFile;
 export type FindQueryParams = {
     query: QueryInputFormat;
@@ -29,13 +40,13 @@ export type FindQueryParams = {
 export type UpdateQueryParams = {
     data: Record<string, unknown>;
     filter?: string;
-    columns?: string[];
+    columns?: ColumnSet;
     returning?: QueryInputFormat;
     table?: string;
 };
 export type CreateQueryParams = {
     data: Record<string, unknown> | Record<string, unknown>[];
-    columns?: string[];
+    columns?: ColumnSet;
     returning?: QueryInputFormat;
     conflict?: QueryInputFormat;
     table?: string;
@@ -43,13 +54,6 @@ export type CreateQueryParams = {
 export type QueryCommands = 'SELECT' | 'UPDATE' | 'CREATE';
 export type QueryReturnMode = 'MANY' | 'ONE' | 'ANY';
 export type QueryClauses = 'WHERE' | 'RETURNING' | 'CONFLICT';
-export type ClientInitOptions = {
-    testConnection?: boolean;
-    error?: {
-        query?: CustomQueryError;
-        connect?: CustomConnectError;
-    };
-};
 
 export type QueryConnectArgs = {
     message: string;
@@ -88,11 +92,16 @@ export type QueryErrorArgs = {
 };
 
 // QuerySuite
-export type ColumnSetsParams<M> = Record<string, Array<keyof M>>;
-export type ColumnSets<T> = Record<keyof T, string>;
+export type ColumnSetsParams<M> = Record<string, ColumnSet<M>>;
+export type ColumnSets<T> = Record<keyof T, ColumnSet>;
 export type QuerySetsParams = Record<string, string>;
 export type QuerySets<T> = Record<keyof T, QueryFile>;
 export type FilterSetsParams<M> = Record<
     string,
     { column: keyof M; operator: FilterOperators; alias?: string }
 >;
+
+// ColumnSets
+export type ColumnSet<M = object> =
+    | Array<keyof M>
+    | Array<{ name: keyof M; optional: boolean }>;

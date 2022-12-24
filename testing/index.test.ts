@@ -196,7 +196,7 @@ describe('RUN', () => {
 
 describe('CREATE', () => {
     it('SHOULD CREATE a test user', async () => {
-        const r = await db.query.create<UserModel>({
+        const r = await db.query.createOne<UserModel>({
             data: { id: userId, name: 'testUser', email: 'test@mail.com' },
             table: 'users',
             returning: '*'
@@ -216,7 +216,7 @@ describe('CREATE', () => {
         expect(r[0]).to.have.keys(['id', 'name', 'email']);
     });
     it('SHOULD THROW ERROR due to unique constraint', async () => {
-        const query = db.query.create<UserModel>({
+        const query = db.query.createOne<UserModel>({
             data: { id: userId, name: 'testUser', email: 'test@mail.com' },
             table: 'users',
             returning: '*'
@@ -233,7 +233,7 @@ describe('CREATE', () => {
         );
     });
     it('SHOULD THROW ERROR due to missing required column', async () => {
-        const query = db.query.create<UserModel>({
+        const query = db.query.createOne<UserModel>({
             data: { name: 'testUser', email: 'test@mail.com' },
             table: 'users',
             returning: '*'
@@ -326,7 +326,7 @@ describe('FIND ONE', () => {
 
 describe('UPDATE', () => {
     it('SHOULD UPDATE the current test user', async () => {
-        const query = db.query.update<UserModel>({
+        const query = db.query.updateOne<UserModel>({
             data: { id: userId, name: 'testUser', email: 'test@mail.com' },
             table: 'users',
             filter: `id = ${userId}`,
@@ -338,7 +338,7 @@ describe('UPDATE', () => {
         expect(await query).to.have.keys(['id', 'name', 'email']);
     });
     it('SHOULD THROW ERROR due to unique constraint', async () => {
-        const query = db.query.update<UserModel>({
+        const query = db.query.updateOne<UserModel>({
             data: { id: userId },
             table: 'users',
             returning: '*',

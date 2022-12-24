@@ -1,6 +1,6 @@
 import dotenv from 'dotenv';
 
-import PostgresClient, { QuerySuite } from '../src';
+import PostgresClient from '../src';
 
 dotenv.config();
 
@@ -21,45 +21,63 @@ type UserModel = {
 
 const db = new PostgresClient(connection);
 
-const userQuerySuite = new QuerySuite<UserModel>('users');
+// NORMAL QUERY
+const q = db.query;
 
-const cs = userQuerySuite.columnSets({
+// QUERY SUITE
+const userQuerySuite = db.newQuerySuite<UserModel>('users');
+
+const cs = userQuerySuite.config.columnSets({
     update: ['email'],
-    create: ['name', 'id']
+    create: ['email', 'id', 'name']
 });
 
-const queries = userQuerySuite.querySets(
+const queries = userQuerySuite.config.querySets(
     {
         test: 'test.sql'
     },
     [__dirname, 'db/queryFiles']
 );
 
-const filters = userQuerySuite.filterSets({
+const filters = userQuerySuite.config.filterSets({
     id: { column: 'id', operator: 'EQUAL' },
     email: { column: 'name', operator: 'INCLUDES', alias: 'users' }
 });
 
-// console.log(queries);
-// console.log(cs);
-// console.log(filters({ id: 'dd', asd: 1111, email: [1, 2] }));
-
-// const q = userQuerySuite.db()
-
 const run = async () => {
     const queryPortfolio = {
         list: () =>
-            db.query.findMany<UserModel>({
+            userQuerySuite.query.findMany<UserModel>({
                 query: queries.test,
                 filter: filters({ id: 9569721 })
+            }),
+        create: (data: Pick<UserModel, 'email' | 'name' | 'id'>) =>
+            userQuerySuite.query.createOne<UserModel>({
+                data,
+                columns: cs.create,
+                returning: '*',
+                conflict: 'DO NOTHING'
             })
-        // create: ({ data }) =>
-        //     db.query.create<UserModel>({ data, columns: cs.create })
     };
 
-    const r = await queryPortfolio.list();
+    const c = await queryPortfolio.create({
+        id: 12321321,
+        name: 'testMan',
+        email: 'tests@klajsdfklasdflk.com'
+    });
+    const l = await queryPortfolio.list();
 
-    console.log(r.map((r) => r.email));
+    console.log(l);
+    console.log(c);
+
+    const a = db.query.createOne({
+        data: {
+            id: 12321321,
+            name: 'testMan',
+            email: 'tests@klajsdfklasdflk.com'
+        },
+        columns: ['id', 'name', 'email']
+    });
 };
 
 run();
