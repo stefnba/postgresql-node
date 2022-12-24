@@ -37,20 +37,23 @@ export type FindQueryParams = {
     filter?: string;
     params?: Record<string, unknown>;
 };
-export type UpdateQueryParams = {
-    data: Record<string, unknown>;
-    filter?: string;
-    columns?: ColumnSet;
-    returning?: QueryInputFormat;
+export type CreateOneQueryParams = {
     table?: string;
-};
-export type CreateQueryParams = {
-    data: Record<string, unknown> | Record<string, unknown>[];
-    columns?: ColumnSet;
-    returning?: QueryInputFormat;
     conflict?: QueryInputFormat;
-    table?: string;
+    data: Record<string, unknown>;
+    columns: ColumnSet;
+    returning?: QueryInputFormat;
 };
+export type UpdateOneQueryParams = CreateOneQueryParams & {
+    filter?: string;
+};
+export type UpdateManyQueryParams = Omit<UpdateOneQueryParams, 'data'> & {
+    data: Array<Record<string, unknown>>;
+};
+export type CreateManyQueryParams = Omit<CreateOneQueryParams, 'data'> & {
+    data: Array<Record<string, unknown>>;
+};
+
 export type QueryCommands = 'SELECT' | 'UPDATE' | 'CREATE';
 export type QueryReturnMode = 'MANY' | 'ONE' | 'ANY';
 export type QueryClauses = 'WHERE' | 'RETURNING' | 'CONFLICT';
@@ -104,4 +107,8 @@ export type FilterSetsParams<M> = Record<
 // ColumnSets
 export type ColumnSet<M = undefined> = M extends undefined
     ? Array<string | { name: string; optional: boolean }>
-    : Array<{ name: keyof M; optional: boolean } | keyof M>;
+    : Array<
+          | { name: keyof M; optional: boolean }
+          | keyof M
+          | `${string & keyof M}?`
+      >;

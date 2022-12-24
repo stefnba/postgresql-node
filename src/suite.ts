@@ -63,31 +63,8 @@ export default class QuerySuite<M> {
     /**
      * Creates a new ColumnSet object to limit columns that can be used in update and create queries
      */
-    columnSets<T extends ColumnSetsParams<M>>(columnSets: T): ColumnSets<T> {
-        return Object.entries(columnSets).reduce((prev, [query, cols]) => {
-            const columns = cols.map((col) => {
-                if (typeof col === 'string') {
-                    return col;
-                }
-                if (typeof col === 'object' && 'optional' in col) {
-                    const { optional, ...rest } = col as { optional: boolean };
-                    if (optional) {
-                        return {
-                            ...rest,
-                            skip: (a: any) => !a.exists
-                        };
-                    }
-                    return rest;
-                }
-                return col;
-            });
-            return {
-                ...prev,
-                [query]: new pgHelpers.ColumnSet(columns, {
-                    table: this.table
-                })
-            };
-        }, {} as ColumnSets<T>);
+    columnSets<T extends ColumnSetsParams<M>>(columnSets: T) {
+        return columnSets;
     }
 
     /**

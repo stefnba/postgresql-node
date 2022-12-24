@@ -28,7 +28,7 @@ const q = db.query;
 const userQuerySuite = db.newQuerySuite<UserModel>('users');
 
 const cs = userQuerySuite.config.columnSets({
-    update: ['email'],
+    update: ['id', 'name', 'email', { name: 'email', optional: false }],
     create: ['email', 'id', 'name']
 });
 
@@ -70,14 +70,26 @@ const run = async () => {
     console.log(l);
     console.log(c);
 
-    const a = db.query.createOne({
+    const a = await db.query.createOne<UserModel>({
         data: {
-            id: 12321321,
+            id: 123213291,
             name: 'testMan',
             email: 'tests@klajsdfklasdflk.com'
         },
-        columns: ['id', 'name', 'email']
+        columns: ['id', 'name', 'email'],
+        table: 'users'
     });
+    const aa = await db.query.createOne<UserModel>({
+        data: {
+            id: 123213934,
+            name: 'testMan',
+            email: 'tests@klajsdfklasdflk.com'
+        },
+        columns: ['name', 'email', { name: 'id', optional: true }],
+        // columns: ['id', { name: 'name', optional: true }, 'email'],
+        table: 'users'
+    });
+    // await db.query.createMany<UserModel>({data: [{}], columns: [] })
 };
 
 run();

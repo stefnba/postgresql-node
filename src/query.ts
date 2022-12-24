@@ -1,15 +1,17 @@
 import { IDatabase } from 'pg-promise';
 import pg from 'pg-promise/typescript/pg-subset';
 
-import { chainQueryParts, pgFormat, pgHelpers } from './utils';
+import { chainQueryParts, pgFormat, pgHelpers, buildColumnSet } from './utils';
 import type {
     QueryInputFormat,
     FindQueryParams,
     QueryCommands,
     QueryReturnMode,
     CustomQueryError,
-    CreateQueryParams,
-    UpdateQueryParams,
+    CreateOneQueryParams,
+    UpdateOneQueryParams,
+    UpdateManyQueryParams,
+    CreateManyQueryParams,
     QueryErrorArgs,
     QueryInitConfig
 } from './types';
@@ -57,15 +59,20 @@ export default class PostgresQuery {
     /**
      * Run a UPDATE query that changes a single record
      */
-    async updateOne<R>(params: UpdateQueryParams): Promise<R> {
+    async updateOne<R>(params: UpdateOneQueryParams): Promise<R> {
         const command = 'UPDATE';
         const table = params.table || this.table;
 
         // todo table empty error
 
-        const updateQueryString = pgHelpers.update(params.data, null, table, {
-            emptyUpdate: null
-        });
+        const updateQueryString = pgHelpers.update(
+            params.data,
+            buildColumnSet(params.columns, table),
+            table,
+            {
+                emptyUpdate: null
+            }
+        );
 
         if (!updateQueryString) {
             this.throwError({
@@ -89,15 +96,20 @@ export default class PostgresQuery {
     /**
      * Run a UPDATE query that changes multiple records
      */
-    async updateMany<R>(params: UpdateQueryParams): Promise<R[]> {
+    async updateMany<R>(params: UpdateManyQueryParams): Promise<R[]> {
         const command = 'UPDATE';
         const table = params.table || this.table;
 
         // todo table empty error
 
-        const updateQueryString = pgHelpers.update(params.data, null, table, {
-            emptyUpdate: null
-        });
+        const updateQueryString = pgHelpers.update(
+            params.data,
+            buildColumnSet(params.columns, table),
+            table,
+            {
+                emptyUpdate: null
+            }
+        );
 
         if (!updateQueryString) {
             this.throwError({
@@ -121,13 +133,17 @@ export default class PostgresQuery {
     /**
      * Run a CREATE query
      */
-    async createOne<R>(params: CreateQueryParams): Promise<R> {
+    async createOne<R>(params: CreateOneQueryParams): Promise<R> {
         const command = 'CREATE';
         const table = params.table || this.table;
 
         // todo table empty error
 
-        const createQueryString = pgHelpers.insert(params.data, null, table);
+        const createQueryString = pgHelpers.insert(
+            params.data,
+            buildColumnSet(params.columns, table),
+            table
+        );
 
         if (!createQueryString) {
             throw Error('No columns for creating were provided!');
@@ -145,13 +161,17 @@ export default class PostgresQuery {
     /**
      * Run a CREATE query that creates multiple records
      */
-    async createMany<R>(params: CreateQueryParams): Promise<R[]> {
+    async createMany<R>(params: CreateManyQueryParams): Promise<R[]> {
         const command = 'CREATE';
         const table = params.table || this.table;
 
         // todo table empty error
 
-        const createQueryString = pgHelpers.insert(params.data, null, table);
+        const createQueryString = pgHelpers.insert(
+            params.data,
+            buildColumnSet(params.columns, table),
+            table
+        );
 
         if (!createQueryString) {
             throw Error('No columns for creating were provided!');
@@ -203,8 +223,6 @@ export default class PostgresQuery {
                 message: 'An empty query was provided'
             });
         }
-
-        console.log(query);
 
         return this.client
             .any(query)

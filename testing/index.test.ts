@@ -199,7 +199,8 @@ describe('CREATE', () => {
         const r = await db.query.createOne<UserModel>({
             data: { id: userId, name: 'testUser', email: 'test@mail.com' },
             table: 'users',
-            returning: '*'
+            returning: '*',
+            columns: ['id', 'name', 'email']
         });
         expect(r).to.have.keys(['id', 'name', 'email']);
     });
@@ -209,6 +210,7 @@ describe('CREATE', () => {
                 { id: userId + 1, name: 'testUser', email: 'test@mail.com' },
                 { id: userId + 2, name: 'testUser', email: 'test@mail.com' }
             ],
+            columns: ['id', 'name', 'email'],
             table: 'users',
             returning: '*'
         });
@@ -219,10 +221,11 @@ describe('CREATE', () => {
         const query = db.query.createOne<UserModel>({
             data: { id: userId, name: 'testUser', email: 'test@mail.com' },
             table: 'users',
+            columns: ['id', 'name', 'email'],
             returning: '*'
         });
 
-        query.catch((err) => console.log(err));
+        // query.catch((err) => console.log(err));
 
         await expect(query).to.be.eventually.rejected.and.has.property('code');
         await expect(query)
@@ -236,7 +239,8 @@ describe('CREATE', () => {
         const query = db.query.createOne<UserModel>({
             data: { name: 'testUser', email: 'test@mail.com' },
             table: 'users',
-            returning: '*'
+            returning: '*',
+            columns: ['name', 'email']
         });
 
         // query.catch((err) => console.log(err));
@@ -314,7 +318,7 @@ describe('FIND ONE', () => {
             query: 'SELECT id, pasta FROM users'
         });
 
-        query.catch((err) => console.log(err));
+        // query.catch((err) => console.log(err));
 
         await expect(query).to.be.eventually.rejected.and.has.property('code');
         await expect(query)
@@ -330,7 +334,8 @@ describe('UPDATE', () => {
             data: { id: userId, name: 'testUser', email: 'test@mail.com' },
             table: 'users',
             filter: `id = ${userId}`,
-            returning: '*'
+            returning: '*',
+            columns: ['id', 'name', 'email']
         });
 
         query.catch((err) => console.log(err));
@@ -340,6 +345,7 @@ describe('UPDATE', () => {
     it('SHOULD THROW ERROR due to unique constraint', async () => {
         const query = db.query.updateOne<UserModel>({
             data: { id: userId },
+            columns: ['id'],
             table: 'users',
             returning: '*',
             filter: `id = ${userId + 1}`

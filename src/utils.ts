@@ -1,6 +1,11 @@
 import pgPromise, { QueryFile } from 'pg-promise';
 
-import type { QueryInputFormat, ChainQueryObject, QueryClauses } from './types';
+import type {
+    QueryInputFormat,
+    ChainQueryObject,
+    QueryClauses,
+    ColumnSet
+} from './types';
 
 export const pgHelpers = pgPromise().helpers;
 
@@ -79,4 +84,38 @@ export const chainQueryParts = (
         }
     });
     return chainQuery;
+};
+
+export const buildColumnSet = (
+    columns: ColumnSet,
+    table: string | undefined = undefined
+) => {
+    return new pgHelpers.ColumnSet(
+        columns.map((col) => {
+            if (typeof col === 'string') {
+                // make optional if ? is provided in column name
+                if (col.endsWith('?')) {
+                    return {
+                        name: col,
+                        skip: (a: any) => !a.exists
+                    };
+                }
+                return col;
+            }
+            if (typeof col === 'object' && 'optional' in col) {
+                const { optional, ...rest } = col as { optional: boolean };
+                if (optional) {
+                    return {
+                        ...rest,
+                        skip: (a: any) => !a.exists
+                    };
+                }
+                return rest;
+            }
+            return col;
+        }),
+        {
+            table: table
+        }
+    );
 };
