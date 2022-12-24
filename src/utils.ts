@@ -74,7 +74,7 @@ export const chainQueryParts = (
         }
 
         if (type === 'CONFLICT') {
-            chainQuery += ` ${query}`;
+            chainQuery += `ON CONFLICT ${query}`;
             return;
         }
     });
