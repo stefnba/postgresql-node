@@ -78,8 +78,6 @@ export default class QuerySuite<M> {
             ? path.join(...baseDir)
             : baseDir;
 
-        console.log(fullDirPath);
-
         return Object.entries(querySets).reduce(
             (acc, [queryKey, queryFileLocation]) => {
                 const fullPath = path.join(fullDirPath, queryFileLocation);
