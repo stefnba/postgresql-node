@@ -41,7 +41,8 @@ const queries = userQuerySuite.config.querySets(
 
 const filters = userQuerySuite.config.filterSets({
     id: { column: 'id', operator: 'EQUAL' },
-    email: { column: 'name', operator: 'INCLUDES', alias: 'users' }
+    email: { column: 'name', operator: 'INCLUDES', alias: 'users' },
+    rank: 'EQUAL'
 });
 
 const run = async () => {

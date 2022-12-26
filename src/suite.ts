@@ -36,15 +36,30 @@ export default class QuerySuite<M> {
 
                         const filterConfig = filterSets[filterKey];
                         if (filterConfig) {
-                            return {
-                                filter: filterKey,
-                                value: filterValue,
-                                operator: filterConfig.operator,
-                                sql: filterOperators[filterConfig.operator]({
+                            let sql: string;
+
+                            if (typeof filterConfig === 'string') {
+                                sql = filterOperators[filterConfig]({
+                                    alias: this.table,
+                                    column: filterKey,
+                                    value: filterValue
+                                });
+                            } else {
+                                sql = filterOperators[filterConfig.operator]({
                                     alias: filterConfig.alias || this.table,
                                     column: filterConfig.column,
                                     value: filterValue
-                                })
+                                });
+                            }
+
+                            return {
+                                filter: filterKey,
+                                value: filterValue,
+                                operator:
+                                    typeof filterConfig === 'string'
+                                        ? filterConfig
+                                        : filterConfig.operator,
+                                sql
                             };
                         }
                     }

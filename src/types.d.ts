@@ -113,7 +113,8 @@ export type QuerySetsParams = Record<string, string>;
 export type QuerySets<T> = Record<keyof T, QueryFile>;
 export type FilterSetsParams<M> = Record<
     string,
-    { column: keyof M; operator: FilterOperators; alias?: string }
+    | { column: keyof M; operator: FilterOperators; alias?: string }
+    | FilterOperators
 >;
 
 // ColumnSets
