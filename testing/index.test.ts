@@ -2,17 +2,24 @@ import chai from 'chai';
 import chaiAsPromised from 'chai-as-promised';
 import mocha from 'mocha';
 import dotenv from 'dotenv';
+import { QueryFile } from 'pg-promise';
+// import cryptoRandomString from 'crypto-random-string';
 
-import PostgresClient from '../src';
-import QueryError from '../src/errors';
+import PostgresClient, { QuerySuite } from '../src';
 import { QueryErrorCodes } from '../src/constants';
+import PostgresQuery from '../src/query';
 
 const { it, describe } = mocha;
 const { expect } = chai;
+
 chai.use(chaiAsPromised);
 dotenv.config();
 
-const userId = Math.round(Math.random() * 10000000);
+// const randomString = (length = 10) => {
+//     return cryptoRandomString({ length });
+// };
+
+let email: string; // required to use email in various test blocks
 
 const connection = {
     host: process.env.DB_HOST,
@@ -175,8 +182,14 @@ describe('SETUP', () => {
 
 describe('RUN', () => {
     it('SHOULD CREATE a table', async () => {
+        await db.query.run('DROP TABLE IF EXISTS users');
         await db.query.run(
-            'CREATE TABLE IF NOT EXISTS users (id int UNIQUE NOT NULL, name varchar NOT NULL, email varchar NOT NULL)',
+            `
+                CREATE TABLE IF NOT EXISTS users (
+                    id SERIAL PRIMARY KEY,
+                    name varchar NOT NULL,
+                    email varchar UNIQUE NOT NULL
+                )`,
             {},
             'ANY'
         );
@@ -197,31 +210,35 @@ describe('RUN', () => {
 describe('CREATE', () => {
     it('SHOULD CREATE a test user', async () => {
         const r = await db.query.createOne<UserModel>({
-            data: { id: userId, name: 'testUser', email: 'test@mail.com' },
+            data: { name: 'testUser', email: 'test1@mail.com' },
             table: 'users',
             returning: '*',
-            columns: ['id', 'name', 'email']
+            columns: ['name', 'email']
         });
         expect(r).to.have.keys(['id', 'name', 'email']);
     });
-    it('SHOULD CREATE multiple test users', async () => {
+    it('SHOULD CREATE 25 test users', async () => {
+        const number = 25;
+        const data = [...Array(number)].map((_, i) => {
+            const user = `user${i}`;
+            return { name: user, email: `${user}@mail.com` };
+        });
+
         const r = await db.query.createMany<UserModel>({
-            data: [
-                { id: userId + 1, name: 'testUser', email: 'test@mail.com' },
-                { id: userId + 2, name: 'testUser', email: 'test@mail.com' }
-            ],
-            columns: ['id', 'name', 'email'],
+            data,
+            columns: ['name', 'email'],
             table: 'users',
             returning: '*'
         });
         expect(r).to.be.an('array');
+        expect(r).to.have.length(number);
         expect(r[0]).to.have.keys(['id', 'name', 'email']);
     });
     it('SHOULD THROW ERROR due to unique constraint', async () => {
         const query = db.query.createOne<UserModel>({
-            data: { id: userId, name: 'testUser', email: 'test@mail.com' },
+            data: { name: 'testUser', email: 'user1@mail.com' },
             table: 'users',
-            columns: ['id', 'name', 'email'],
+            columns: ['name', 'email'],
             returning: '*'
         });
 
@@ -237,10 +254,10 @@ describe('CREATE', () => {
     });
     it('SHOULD THROW ERROR due to missing required column', async () => {
         const query = db.query.createOne<UserModel>({
-            data: { name: 'testUser', email: 'test@mail.com' },
+            data: { name: null },
             table: 'users',
             returning: '*',
-            columns: ['name', 'email']
+            columns: ['name']
         });
 
         // query.catch((err) => console.log(err));
@@ -263,7 +280,7 @@ describe('FIND MANY', () => {
     });
     it('SHOULD FIND one user in "Many" mode (return in array)', async () => {
         const r = await db.query.findMany<UserModel>({
-            query: `SELECT * FROM users WHERE id = ${userId}`
+            query: "SELECT * FROM users WHERE email = 'test1@mail.com'"
         });
         expect(r).to.be.an('array');
         expect(r[0]).to.have.keys(['id', 'name', 'email']);
@@ -273,13 +290,13 @@ describe('FIND MANY', () => {
 describe('FIND ONE', () => {
     it('SHOULD FIND one user record', async () => {
         const r = await db.query.findOne<UserModel>({
-            query: `SELECT * FROM users WHERE id = ${userId}`
+            query: "SELECT * FROM users WHERE email = 'test1@mail.com'"
         });
         expect(r).to.have.keys(['id', 'name', 'email']);
     });
     it('SHOULD NOT FIND one user record and return null', async () => {
         const r = await db.query.findOne<UserModel>({
-            query: `SELECT * FROM users WHERE id = ${userId * 2}`
+            query: 'SELECT * FROM users WHERE id = 3434'
         });
         expect(r).to.be.null;
     });
@@ -331,24 +348,24 @@ describe('FIND ONE', () => {
 describe('UPDATE', () => {
     it('SHOULD UPDATE the current test user', async () => {
         const query = db.query.updateOne<UserModel>({
-            data: { id: userId, name: 'testUser', email: 'test@mail.com' },
+            data: { name: 'testUserUpdated', email: 'test-update@mail.com' },
             table: 'users',
-            filter: `id = ${userId}`,
+            filter: 'id = 1',
             returning: '*',
-            columns: ['id', 'name', 'email']
+            columns: ['name', 'email']
         });
 
-        query.catch((err) => console.log(err));
+        // query.catch((err) => console.log(err));
 
         expect(await query).to.have.keys(['id', 'name', 'email']);
     });
     it('SHOULD THROW ERROR due to unique constraint', async () => {
         const query = db.query.updateOne<UserModel>({
-            data: { id: userId },
-            columns: ['id'],
+            data: { email: 'user3@mail.com' },
+            columns: ['email'],
             table: 'users',
             returning: '*',
-            filter: `id = ${userId + 1}`
+            filter: 'id = 2'
         });
 
         // query.catch((err) => console.log(err));
@@ -360,6 +377,53 @@ describe('UPDATE', () => {
         await expect(query).to.be.rejectedWith(
             'duplicate key value violates unique constraint'
         );
+    });
+});
+
+let userQuerySuite: { config: QuerySuite<UserModel>; query: PostgresQuery };
+// let cs: unknown;
+// let queries: unknown;
+
+describe('QUERY SUITE', () => {
+    before(() => {
+        userQuerySuite = db.newQuerySuite<UserModel>('users');
+    });
+    describe('CONFIG', () => {
+        it('SHOULD CONFIG ColumnSet', async () => {
+            const cs = userQuerySuite.config.columnSets({
+                update: ['id', 'name', 'email'],
+                create: ['email', 'id', 'name']
+            });
+
+            expect(cs).to.have.keys(['update', 'create']);
+            expect(cs.create).to.be.an('array');
+        });
+        it('SHOULD CONFIG QuerySet', async () => {
+            const queries = userQuerySuite.config.querySets(
+                {
+                    get: 'get.sql'
+                },
+                [__dirname, 'db/queryFiles']
+            );
+
+            expect(queries).to.have.keys(['get']);
+            expect(queries.get).to.be.an.instanceof(QueryFile);
+        });
+    });
+    describe('CREATE', () => {
+        it('SHOULD CREATE AND RETURN a user', async () => {
+            const cs = userQuerySuite.config.columnSets({
+                create: ['email', 'name']
+            });
+
+            const r = await userQuerySuite.query.createOne<UserModel>({
+                data: { name: 'suiteTest', email: 'suite@email.com' },
+                columns: cs.create,
+                returning: '*'
+            });
+
+            expect(r).to.have.keys(['id', 'email', 'name']);
+        });
     });
 });
 
