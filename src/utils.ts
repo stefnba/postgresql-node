@@ -106,7 +106,7 @@ export const buildColumnSet = (
                 // make optional if ? is provided in column name
                 if (col.endsWith('?')) {
                     return {
-                        name: col,
+                        name: col.replace('?', ''),
                         skip: (a: any) => !a.exists
                     };
                 }
