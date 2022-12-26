@@ -82,6 +82,16 @@ export const chainQueryParts = (
             chainQuery += `ON CONFLICT ${query}`;
             return;
         }
+
+        if (type === 'LIMIT') {
+            chainQuery += ` ${query}`;
+            return;
+        }
+
+        if (type === 'OFFSET') {
+            chainQuery += ` ${query}`;
+            return;
+        }
     });
     return chainQuery;
 };

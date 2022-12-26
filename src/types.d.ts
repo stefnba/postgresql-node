@@ -85,9 +85,8 @@ export type FilterOperators = keyof typeof filterOperators;
 
 // Pagination
 export type PaginationParams = {
-    pageSize: number;
     page: number;
-    defaultPageSize?: number;
+    pageSize?: number;
 };
 
 // Errors

@@ -15,10 +15,6 @@ const { expect } = chai;
 chai.use(chaiAsPromised);
 dotenv.config();
 
-// const randomString = (length = 10) => {
-//     return cryptoRandomString({ length });
-// };
-
 let email: string; // required to use email in various test blocks
 
 const connection = {
@@ -34,6 +30,7 @@ type UserModel = {
     id: number;
     name: string;
     email: string;
+    rank: number;
 };
 
 let db: PostgresClient;
@@ -188,7 +185,8 @@ describe('RUN', () => {
                 CREATE TABLE IF NOT EXISTS users (
                     id SERIAL PRIMARY KEY,
                     name varchar NOT NULL,
-                    email varchar UNIQUE NOT NULL
+                    email varchar UNIQUE NOT NULL,
+                    rank INT NOT NULL
                 )`,
             {},
             'ANY'
@@ -210,35 +208,35 @@ describe('RUN', () => {
 describe('CREATE', () => {
     it('SHOULD CREATE a test user', async () => {
         const r = await db.query.createOne<UserModel>({
-            data: { name: 'testUser', email: 'test1@mail.com' },
+            data: { name: 'user1', email: 'user1@mail.com', rank: 1 },
             table: 'users',
             returning: '*',
-            columns: ['name', 'email']
+            columns: ['name', 'email', 'rank']
         });
-        expect(r).to.have.keys(['id', 'name', 'email']);
+        expect(r).to.have.keys(['id', 'name', 'email', 'rank']);
     });
-    it('SHOULD CREATE 25 test users', async () => {
-        const number = 25;
+    it('SHOULD CREATE 50 test users', async () => {
+        const number = 50;
         const data = [...Array(number)].map((_, i) => {
-            const user = `user${i}`;
-            return { name: user, email: `${user}@mail.com` };
+            const user = `user${i + 2}`;
+            return { name: user, email: `${user}@mail.com`, rank: i + 2 };
         });
 
         const r = await db.query.createMany<UserModel>({
             data,
-            columns: ['name', 'email'],
+            columns: ['name', 'email', 'rank'],
             table: 'users',
             returning: '*'
         });
         expect(r).to.be.an('array');
         expect(r).to.have.length(number);
-        expect(r[0]).to.have.keys(['id', 'name', 'email']);
+        expect(r[0]).to.have.keys(['id', 'name', 'email', 'rank']);
     });
     it('SHOULD THROW ERROR due to unique constraint', async () => {
         const query = db.query.createOne<UserModel>({
-            data: { name: 'testUser', email: 'user1@mail.com' },
+            data: { name: 'testUser', email: 'user1@mail.com', rank: 555 },
             table: 'users',
-            columns: ['name', 'email'],
+            columns: ['name', 'email', 'rank'],
             returning: '*'
         });
 
@@ -276,23 +274,58 @@ describe('FIND MANY', () => {
             query: 'SELECT * FROM users'
         });
         expect(r).to.be.an('array');
-        expect(r[0]).to.have.keys(['id', 'name', 'email']);
+        expect(r[0]).to.have.keys(['id', 'name', 'email', 'rank']);
     });
     it('SHOULD FIND one user in "Many" mode (return in array)', async () => {
         const r = await db.query.findMany<UserModel>({
-            query: "SELECT * FROM users WHERE email = 'test1@mail.com'"
+            query: "SELECT * FROM users WHERE email = 'user1@mail.com'"
         });
         expect(r).to.be.an('array');
-        expect(r[0]).to.have.keys(['id', 'name', 'email']);
+        expect(r[0]).to.have.keys(['id', 'name', 'email', 'rank']);
+    });
+    it('SHOULD FIND 5 users with pagination', async () => {
+        const r = await db.query.findMany<UserModel>({
+            query: 'SELECT * FROM users',
+            pagination: { page: 1, pageSize: 5 }
+        });
+        expect(r).to.be.an('array');
+        expect(r).to.have.length(5);
+        expect(r[0]).to.have.keys(['id', 'name', 'email', 'rank']);
+    });
+    it('SHOULD FIND 8 users on page 2 with pagination', async () => {
+        const pagination = { page: 2, pageSize: 8 };
+
+        const r = await db.query.findMany<UserModel>({
+            query: 'SELECT * FROM users',
+            pagination
+        });
+        expect(r).to.be.an('array');
+        expect(r[0]).to.have.keys(['id', 'name', 'email', 'rank']);
+        expect(r).to.have.length(pagination.pageSize);
+        expect(r[0].rank).to.equal(pagination.pageSize + 1);
+        expect(r.slice(-1)[0].rank).to.equal(
+            pagination.pageSize * pagination.page
+        );
+    });
+    it('SHOULD FIND 25 users on page with pagination default pageSize', async () => {
+        const pagination = { page: 1 };
+
+        const r = await db.query.findMany<UserModel>({
+            query: 'SELECT * FROM users',
+            pagination
+        });
+        expect(r).to.be.an('array');
+        expect(r[0]).to.have.keys(['id', 'name', 'email', 'rank']);
+        expect(r).to.have.length(25);
     });
 });
 
 describe('FIND ONE', () => {
     it('SHOULD FIND one user record', async () => {
         const r = await db.query.findOne<UserModel>({
-            query: "SELECT * FROM users WHERE email = 'test1@mail.com'"
+            query: "SELECT * FROM users WHERE email = 'user1@mail.com'"
         });
-        expect(r).to.have.keys(['id', 'name', 'email']);
+        expect(r).to.have.keys(['id', 'name', 'email', 'rank']);
     });
     it('SHOULD NOT FIND one user record and return null', async () => {
         const r = await db.query.findOne<UserModel>({
@@ -357,7 +390,7 @@ describe('UPDATE', () => {
 
         // query.catch((err) => console.log(err));
 
-        expect(await query).to.have.keys(['id', 'name', 'email']);
+        expect(await query).to.have.keys(['id', 'name', 'email', 'rank']);
     });
     it('SHOULD THROW ERROR due to unique constraint', async () => {
         const query = db.query.updateOne<UserModel>({
@@ -413,16 +446,20 @@ describe('QUERY SUITE', () => {
     describe('CREATE', () => {
         it('SHOULD CREATE AND RETURN a user', async () => {
             const cs = userQuerySuite.config.columnSets({
-                create: ['email', 'name']
+                create: ['email', 'name', 'rank']
             });
 
             const r = await userQuerySuite.query.createOne<UserModel>({
-                data: { name: 'suiteTest', email: 'suite@email.com' },
+                data: {
+                    name: 'suiteTest',
+                    email: 'suite@email.com',
+                    rank: 100
+                },
                 columns: cs.create,
                 returning: '*'
             });
 
-            expect(r).to.have.keys(['id', 'email', 'name']);
+            expect(r).to.have.keys(['id', 'email', 'name', 'rank']);
         });
     });
 });
