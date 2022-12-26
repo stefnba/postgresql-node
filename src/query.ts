@@ -4,7 +4,8 @@ import pg from 'pg-promise/typescript/pg-subset';
 import { chainQueryParts, pgFormat, pgHelpers, buildColumnSet } from './utils';
 import type {
     QueryInputFormat,
-    FindQueryParams,
+    FindOneQueryParams,
+    FindManyQueryParams,
     QueryCommands,
     QueryReturnMode,
     CustomQueryError,
@@ -17,6 +18,7 @@ import type {
 } from './types';
 import QueryError from './errors';
 import { QueryErrorCodes } from './constants';
+import pagination from './pagination';
 
 export default class PostgresQuery {
     private client: IDatabase<Record<string, unknown>, pg.IClient>;
@@ -35,7 +37,7 @@ export default class PostgresQuery {
     /**
      * Run a SELECT query that returns a single record
      */
-    async findOne<R>(params: FindQueryParams): Promise<R> {
+    async findOne<R>(params: FindOneQueryParams): Promise<R> {
         const queryString = pgFormat(params.query, params.params);
         const q = chainQueryParts([
             queryString,
@@ -47,11 +49,13 @@ export default class PostgresQuery {
     /**
      * Run a SELECT query that returns multiple record
      */
-    async findMany<R>(params: FindQueryParams): Promise<R[]> {
+    async findMany<R>(params: FindManyQueryParams): Promise<R[]> {
         const queryString = pgFormat(params.query, params.params);
         const q = chainQueryParts([
             queryString,
-            { type: 'WHERE', query: params.filter }
+            { type: 'WHERE', query: params.filter },
+            { type: 'LIMIT', query: pagination.pageSize(params.pagination) },
+            { type: 'OFFSET', query: pagination.page(params.pagination) }
         ]);
         return this.execute(q, 'MANY', 'SELECT');
     }

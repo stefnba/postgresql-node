@@ -32,10 +32,13 @@ export type QueryInitConfig = {
     table?: string;
 };
 export type QueryInputFormat = string | pgPromise.QueryFile;
-export type FindQueryParams = {
+export type FindOneQueryParams = {
     query: QueryInputFormat;
     filter?: string;
     params?: Record<string, unknown>;
+};
+export type FindManyQueryParams = FindOneQueryParams & {
+    pagination?: PaginationParams;
 };
 export type CreateOneQueryParams = {
     table?: string;
@@ -56,7 +59,12 @@ export type CreateManyQueryParams = Omit<CreateOneQueryParams, 'data'> & {
 
 export type QueryCommands = 'SELECT' | 'UPDATE' | 'CREATE';
 export type QueryReturnMode = 'MANY' | 'ONE' | 'ANY';
-export type QueryClauses = 'WHERE' | 'RETURNING' | 'CONFLICT';
+export type QueryClauses =
+    | 'WHERE'
+    | 'RETURNING'
+    | 'CONFLICT'
+    | 'LIMIT'
+    | 'OFFSET';
 
 export type QueryConnectArgs = {
     message: string;
@@ -76,6 +84,11 @@ export type FilterOperatorParams = {
 export type FilterOperators = keyof typeof filterOperators;
 
 // Pagination
+export type PaginationParams = {
+    pageSize: number;
+    page: number;
+    defaultPageSize?: number;
+};
 
 // Errors
 export type CustomQueryError = (err: QueryErrorArgs) => void;

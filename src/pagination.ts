@@ -1,16 +1,32 @@
+import type { PaginationParams } from './types';
 import { pgFormat } from './utils';
 
 /**
- * Translates page and pageSize into Postgres LIMIT and OFFSET statements
- * @param params which page to show and how many records
+ * Translates pagination params into Postgres LIMIT statements
+ * @param pagination which page and how many records to show
  * @returns Query that can be integrated in run statement with LIMIT and OFFSET
  */
-const pagination = ({ page = 0, pageSize = 25 }): string => {
-    const offset = page > 0 ? (page - 1) * pageSize : 0;
-    return pgFormat(' LIMIT $<pageSize> OFFSET $<offset>', {
-        offset,
-        pageSize
-    });
+const pageSize = (pagination: PaginationParams | undefined) => {
+    if (!pagination) return '';
+    const { pageSize } = pagination;
+
+    return pgFormat(' LIMIT $<pageSize>', { pageSize });
 };
 
-export default pagination;
+/**
+ * Translates pagination params into Postgres OFFSET statements
+ * @param pagination which page and how many records to show
+ * @returns Query that can be integrated in run statement with LIMIT and OFFSET
+ */
+const page = (pagination: PaginationParams | undefined) => {
+    if (!pagination) return '';
+    const { page, pageSize } = pagination;
+
+    const offset = page > 0 ? (page - 1) * pageSize : 0;
+    return pgFormat(' OFFSET $<offset>', { offset });
+};
+
+export default {
+    pageSize,
+    page
+};
