@@ -23,6 +23,36 @@ export const filterOperators = {
             value,
             alias
         }),
+    NOT_EQUAL: ({ column, alias, value }: FilterOperatorParams) =>
+        pgFormat('$<alias:name>.$<column:name> != $<value>', {
+            column,
+            value,
+            alias
+        }),
+    GREATER_EQUAL: ({ column, alias, value }: FilterOperatorParams) =>
+        pgFormat('$<alias:name>.$<column:name> >= $<value>', {
+            column,
+            value,
+            alias
+        }),
+    GREATER: ({ column, alias, value }: FilterOperatorParams) =>
+        pgFormat('$<alias:name>.$<column:name> > $<value>', {
+            column,
+            value,
+            alias
+        }),
+    LESS_EQUAL: ({ column, alias, value }: FilterOperatorParams) =>
+        pgFormat('$<alias:name>.$<column:name> <= $<value>', {
+            column,
+            value,
+            alias
+        }),
+    LESS: ({ column, alias, value }: FilterOperatorParams) =>
+        pgFormat('$<alias:name>.$<column:name> < $<value>', {
+            column,
+            value,
+            alias
+        }),
     LIKE: ({ column, alias, value }: FilterOperatorParams) =>
         pgFormat(
             "LOWER($<alias:name>.$<column:name>) LIKE LOWER('%$<value:value>%')",
