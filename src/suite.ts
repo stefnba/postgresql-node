@@ -38,6 +38,7 @@ export default class QuerySuite<M> {
                         if (filterConfig) {
                             let sql: string;
 
+                            // shorthand version, i.e. filterKey is key ob object, operator is value
                             if (typeof filterConfig === 'string') {
                                 sql = filterOperators[filterConfig]({
                                     alias: this.table,

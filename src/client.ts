@@ -101,6 +101,11 @@ export default class PostgresClient {
         }
     }
 
+    /**
+     * Creates Query Suite which simplifies queries and incorporates types
+     * @param table
+     * @returns query and config methods
+     */
     newQuerySuite<M>(table: string) {
         const query = new PostgresQuery(this.db, {
             queryError: this.initOptions.error?.query,
