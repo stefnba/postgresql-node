@@ -1,6 +1,6 @@
 {
     "name": "postgresql-node",
-    "version": "1.1.7",
+    "version": "1.1.8",
     "description": "",
     "main": "lib/index.js",
     "types": "lib/index.d.ts",
@@ -15,10 +15,9 @@
         "docker": "docker compose -f testing/docker-compose.yml --project-directory . up -d --build --force-recreate",
         "lint": "tslint -p tsconfig.json",
         "prepare": "npm run build",
-        "prepublishOnly": "npm test && npm run lint",
-        "format": "prettier --write \"src/**/*.ts\" \"lib/**/*.js\"",
-        "preversion": "npm run build && npm run lint",
-        "version": "npm run format && git add -A src lib",
+        "format": "prettier --write \"src/**/*.ts\" \"lib/**/*.js|ts\"",
+        "preversion": "npm run lint",
+        "version": "npm run format && git add -A src",
         "postversion": "git push && git push --tags"
     },
     "keywords": [],
