@@ -5,7 +5,8 @@ import dotenv from 'dotenv';
 import { QueryFile } from 'pg-promise';
 // import cryptoRandomString from 'crypto-random-string';
 
-import PostgresClient, { QuerySuite } from '../src';
+import PostgresClient from '../src';
+import QuerySuite from '../src/suite';
 import { QueryErrorCodes } from '../src/constants';
 import PostgresQuery from '../src/query';
 
@@ -14,8 +15,6 @@ const { expect } = chai;
 
 chai.use(chaiAsPromised);
 dotenv.config();
-
-let email: string; // required to use email in various test blocks
 
 const connection = {
     host: process.env.DB_HOST,
