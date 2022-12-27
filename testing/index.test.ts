@@ -127,7 +127,10 @@ describe('SETUP', () => {
             expect(status).to.have.property('status');
             expect(status.status).to.equal('FAILED');
             expect(status).to.have.property('message');
-            expect(status.message).to.include('getaddrinfo ENOTFOUND wrong');
+            expect(status.message).to.include.oneOf([
+                'getaddrinfo ENOTFOUND wrong',
+                'getaddrinfo EAI_AGAIN wrong'
+            ]);
             expect(status).to.have.property('connection');
             expect(status.connection).to.have.property('host');
             expect(status.connection).to.have.property('port');
