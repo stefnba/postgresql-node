@@ -1,9 +1,12 @@
 {
     "name": "postgresql-node",
-    "version": "1.1.3",
+    "version": "1.1.7",
     "description": "",
     "main": "lib/index.js",
     "types": "lib/index.d.ts",
+    "files": [
+        "lib"
+    ],
     "scripts": {
         "test": "mocha",
         "clean": "rm -rf lib",
@@ -14,8 +17,8 @@
         "prepare": "npm run build",
         "prepublishOnly": "npm test && npm run lint",
         "format": "prettier --write \"src/**/*.ts\" \"lib/**/*.js\"",
-        "preversion": "npm run lint",
-        "version": "npm run format && git add -A src",
+        "preversion": "npm run build && npm run lint",
+        "version": "npm run format && git add -A src lib",
         "postversion": "git push && git push --tags"
     },
     "keywords": [],
