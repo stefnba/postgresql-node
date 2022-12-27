@@ -21,6 +21,7 @@ jobs:
             DB_NAME: app_db
             DB_USER: admin
             DB_PASSWORD: password
+            DB_SCHEMA: public
         steps:
             - uses: actions/checkout@v3
             - name: Use Node.js ${{ matrix.node-version }}
