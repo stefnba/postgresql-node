@@ -25,6 +25,9 @@ export default class PostgresQuery {
     private customQueryError: CustomQueryError | undefined;
     private table: string | undefined;
 
+    task: typeof this.client.task;
+    transaction: typeof this.client.tx;
+
     constructor(
         client: IDatabase<Record<string, unknown>, pg.IClient>,
         config: QueryInitConfig
@@ -32,6 +35,10 @@ export default class PostgresQuery {
         this.table = config.table;
         this.client = client;
         this.customQueryError = config.queryError;
+
+        // transactions and tasks
+        this.task = this.client.task;
+        this.transaction = this.client.tx;
     }
 
     /**
@@ -200,13 +207,6 @@ export default class PostgresQuery {
     ): Promise<R> {
         const queryString = pgFormat(query, params);
         return this.execute(queryString, mode);
-    }
-
-    /**
-     * Initiate a transaction
-     */
-    async transaction() {
-        return this.client.tx;
     }
 
     /**
