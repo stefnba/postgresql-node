@@ -21,6 +21,11 @@ type UserModel = {
 
 const db = new PostgresClient(connection);
 
+const c = await db.close();
+console.log(c);
+
+process.exit();
+
 // NORMAL QUERY
 const q = db.query;
 

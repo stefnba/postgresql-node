@@ -10,8 +10,8 @@ export type DatabaseConnConfig = {
     user: string | undefined;
     password: string;
 };
-export type ConnectionStatusReturn = {
-    status: 'CONNECTED' | 'FAILED' | 'CONNECTING';
+export type ConnectionStatus = {
+    status: 'CONNECTED' | 'FAILED' | 'CONNECTING' | 'DISCONNECTED';
     message?: string;
     connection: DatabaseConnConfig;
 };
@@ -19,10 +19,12 @@ export type ConnectionStatusParams = {
     logging: boolean;
 };
 export type ClientInitOptions = {
-    testConnection?: boolean;
-    error?: {
-        query?: CustomQueryError;
-        connect?: CustomConnectError;
+    connect?: {
+        onInit?: boolean;
+        error?: CustomConnectError;
+    };
+    query?: {
+        error?: CustomQueryError;
     };
 };
 
