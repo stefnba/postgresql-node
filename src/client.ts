@@ -6,22 +6,22 @@ import PostgresQuery from './query';
 import type {
     DatabaseConnConfig,
     ClientInitOptions,
-    ConnectionStatusReturn,
+    ConnectionStatus,
     ConnectionStatusParams
 } from './types';
 import QuerySuite from './suite';
 
 export default class PostgresClient {
     private db: IDatabase<Record<string, unknown>, pg.IClient>;
+    private connectionStatus: ConnectionStatus;
     private initOptions: ClientInitOptions;
-    connectionConfig: DatabaseConnConfig;
-    connectionSuccess: boolean;
+    private connectionConfig: DatabaseConnConfig;
     query: PostgresQuery;
 
     constructor(
         connection: pg.IConnectionParameters<pg.IClient>,
         options: ClientInitOptions = {
-            testConnection: false
+            connect: { onInit: true }
         }
     ) {
         // init
@@ -29,8 +29,6 @@ export default class PostgresClient {
         this.db = pgp(connection);
         this.initOptions = options;
 
-        // test connect
-        this.connectionSuccess = false;
         this.connectionConfig = {
             host: connection.host,
             user: connection.user,
@@ -38,34 +36,51 @@ export default class PostgresClient {
             database: connection.database,
             password: '##########' // hide password
         };
-        if (options?.testConnection) {
-            this.status();
+
+        this.connectionStatus = {
+            status: 'DISCONNECTED',
+            connection: this.connectionConfig
+        };
+
+        // test connection
+        if (options?.connect?.onInit) {
+            this.connect();
         }
 
         // query execution
         this.query = new PostgresQuery(this.db, {
-            queryError: options.error?.query
+            queryError: options.query?.error
         });
+    }
+
+    async connect() {
+        try {
+            const connection = await this.db.connect();
+            this.connectionStatus.status = 'CONNECTED';
+            connection.done(true);
+        } catch (e: any) {
+            this.connectionStatus.message = e.message;
+            this.connectionStatus.status = 'FAILED';
+        }
     }
 
     /**
      * Tests if connection to database can be established
      */
-    async status(
-        options: ConnectionStatusParams = { logging: true }
-    ): Promise<ConnectionStatusReturn> {
+    async status(): Promise<ConnectionStatus> {
+        return this.connectionStatus;
+
         try {
             const connection = await this.db.connect();
             const { client } = connection;
             connection.done(true);
-            this.connectionSuccess = true;
-            if (options.logging) {
-                console.log(
-                    chalk.green(
-                        `Connected to Database "${client.database}" on ${client.host}:${client.port} with user "${client.user}"`
-                    )
-                );
-            }
+            // if (options.logging) {
+            //     console.log(
+            //         chalk.green(
+            //             `Connected to Database "${client.database}" on ${client.host}:${client.port} with user "${client.user}"`
+            //         )
+            //     );
+            // }
             return {
                 status: 'CONNECTED',
                 connection: {
@@ -77,16 +92,16 @@ export default class PostgresClient {
                 }
             };
         } catch (err: any) {
-            if (options.logging) {
-                console.error(
-                    chalk.red(`Database Connection failed (${err.message})`)
-                );
-                console.error(`Host\t\t${this.connectionConfig.host}`);
-                console.error(`Port\t\t${this.connectionConfig.port}`);
-                console.error(`Database\t${this.connectionConfig.database}`);
-                console.error(`User\t\t${this.connectionConfig.user}`);
-                console.error(`Password\t${this.connectionConfig.password}`);
-            }
+            // if (options.logging) {
+            //     console.error(
+            //         chalk.red(`Database Connection failed (${err.message})`)
+            //     );
+            //     console.error(`Host\t\t${this.connectionConfig.host}`);
+            //     console.error(`Port\t\t${this.connectionConfig.port}`);
+            //     console.error(`Database\t${this.connectionConfig.database}`);
+            //     console.error(`User\t\t${this.connectionConfig.user}`);
+            //     console.error(`Password\t${this.connectionConfig.password}`);
+            // }
             return {
                 status: 'FAILED',
                 message: err.message,
@@ -108,7 +123,7 @@ export default class PostgresClient {
      */
     newQuerySuite<M>(table: string) {
         const query = new PostgresQuery(this.db, {
-            queryError: this.initOptions.error?.query,
+            queryError: this.initOptions.query?.error,
             table
         });
 
@@ -117,5 +132,12 @@ export default class PostgresClient {
             config: suite,
             query
         };
+    }
+
+    /**
+     * Closes the connection
+     */
+    async close() {
+        await this.db.$pool.end();
     }
 }
