@@ -46,7 +46,10 @@ export type DatabaseConnectionError = {
 export type RegisteredRepositories<
     Type extends Record<string, typeof DatabaseRepository>
 > = {
-    [Properties in keyof Type]: InstanceType<Type[Properties]>;
+    [Properties in keyof Type]: Omit<
+        InstanceType<Type[Properties]>,
+        'queryInit' | 'filters' | 'queries' | 'columns' | 'table' | 'query'
+    >;
 };
 
 // Errors

@@ -42,7 +42,7 @@ export default class PostgresClient {
             }
         };
 
-        this.query = PostgresQuery.init(this.db, this.options);
+        this.query = this.queryInit();
 
         // test if connection can be established
         if (this.options.connect?.testOnInit) {
@@ -52,7 +52,14 @@ export default class PostgresClient {
         }
     }
 
-    queryInit(table: string) {
+    /**
+     * Initiates PostgresQuery for client
+     * @param table string
+     * Define table for logging, add and update methods
+     * @returns
+     * New PostgresQuery instance
+     */
+    queryInit(table?: string): QueryInit {
         return PostgresQuery.init(this.db, this.options, table);
     }
 
@@ -138,12 +145,10 @@ export default class PostgresClient {
         databaseRespos: R
     ): RegisteredRepositories<R> {
         return Object.entries(databaseRespos).reduce((acc, [key, Repo]) => {
-            console.log(Repo.prototype);
-            const query = PostgresQuery.init(this.db, this.options);
-            const queryInit = this.queryInit;
-            const repo = new Repo(this.db, query);
+            const repo = new Repo();
 
-            console.log(repo);
+            // attach query
+            repo.query = this.queryInit(repo.table);
 
             return {
                 ...acc,

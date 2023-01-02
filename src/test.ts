@@ -11,21 +11,27 @@ export type Product = {
 };
 
 class UserRepo extends DatabaseRepository<User> {
-    protected table = 'Users';
+    table = 'Users';
 
-    protected filters = {
+    filters = {
         id: 1
     };
 
-    protected queries = {
+    queries = {
         get: this.readSql('testing/db/queryFiles/test.sql')
     };
+
+    columns = { add: ['email', 'name'] };
 
     // queryFileBaseDir = [__dirname, 'sql'];
 
     add(data: object) {
         // const cs = this.columnSet();
-        return this.query.add.one({ data });
+        return this.query.add.one({
+            data,
+            returning: '*',
+            columns: this.columns.add
+        });
     }
 
     update(data: object): Promise<User> {
@@ -107,7 +113,8 @@ const main = async () => {
         product: ProductRepo
     });
 
-    await QueryRepositories.user.list();
+    await QueryRepositories.user.retrieve(1);
+    await QueryRepositories.user.add({ email: 'me', name: 'asdfdsf' });
 
     const { query } = client;
 

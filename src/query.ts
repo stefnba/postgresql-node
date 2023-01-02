@@ -34,14 +34,24 @@ export default class PostgresQuery<P extends FindQueryParams | AddQueryParams> {
      */
     static init(client: Database, options: DatabaseOptions, table?: string) {
         return {
-            find: new this<FindQueryParams>(client, options, 'SELECT', table),
-            update: new this<UpdateQueryParams>(
+            find: new PostgresQuery<FindQueryParams>(
+                client,
+                options,
+                'SELECT',
+                table
+            ),
+            update: new PostgresQuery<UpdateQueryParams>(
                 client,
                 options,
                 'UPDATE',
                 table
             ),
-            add: new this<AddQueryParams>(client, options, 'INSERT', table)
+            add: new PostgresQuery<AddQueryParams>(
+                client,
+                options,
+                'INSERT',
+                table
+            )
         };
     }
 

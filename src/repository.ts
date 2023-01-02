@@ -1,17 +1,16 @@
-import { IDatabase, QueryFile } from 'pg-promise';
+import { QueryFile } from 'pg-promise';
 import path from 'path';
-import PostgresQuery from './query';
-import { Database, QueryInit } from './types';
+import { QueryInit } from './types';
 
 const joinPath = path.join;
 
 export default class DatabaseRepository<M = undefined> {
     // protected readonly db: Database;
-    protected query: QueryInit;
+    query!: QueryInit;
     /**
      * Name of table in database
      * */
-    protected table?: string;
+    table?: string;
     /** Test */
     protected filters?: Record<string, number>;
     /**
@@ -24,11 +23,8 @@ export default class DatabaseRepository<M = undefined> {
      */
     protected queries?: Record<string, string | QueryFile>;
 
-    constructor(db: Database, query: QueryInit) {
-        this.table = undefined;
-        // this.db = db;
-
-        this.query = query;
+    columnSet(columns: Array<string>) {
+        return columns;
     }
 
     /**
