@@ -1,143 +1,154 @@
-import pgPromise, { IDatabase } from 'pg-promise';
+import pgPromise from 'pg-promise';
 import chalk from 'chalk';
-import pg from 'pg-promise/typescript/pg-subset';
 
 import PostgresQuery from './query';
+import { ConnectionErrorTypes } from './constants';
+
+import DatabaseRepository from './repository';
 import type {
-    DatabaseConnConfig,
-    ClientInitOptions,
-    ConnectionStatus,
-    ConnectionStatusParams
+    DatabaseConnection,
+    DatabaseStatus,
+    RegisteredRepositories,
+    Database,
+    DatabaseOptions,
+    DatabaseConnectionError,
+    QueryInit
 } from './types';
-import QuerySuite from './suite';
 
 export default class PostgresClient {
-    private db: IDatabase<Record<string, unknown>, pg.IClient>;
-    private connectionStatus: ConnectionStatus;
-    private initOptions: ClientInitOptions;
-    private connectionConfig: DatabaseConnConfig;
-    query: PostgresQuery;
+    readonly db: Database;
+    readonly query: QueryInit;
+    private _status: DatabaseStatus;
+    private options: DatabaseOptions;
 
-    constructor(
-        connection: pg.IConnectionParameters<pg.IClient>,
-        options: ClientInitOptions = {
-            connect: { onInit: true }
-        }
-    ) {
-        // init
+    constructor(connection: DatabaseConnection, options: DatabaseOptions) {
         const pgp = pgPromise();
         this.db = pgp(connection);
-        this.initOptions = options;
 
-        this.connectionConfig = {
-            host: connection.host,
-            user: connection.user,
-            port: connection.port,
-            database: connection.database,
-            password: '##########' // hide password
+        this.options = {
+            ...options,
+            connect: {
+                testOnInit: true,
+                logConnect: true,
+                ...options.connect
+            }
         };
 
-        this.connectionStatus = {
-            status: 'DISCONNECTED',
-            connection: this.connectionConfig
+        this._status = {
+            status: 'INIT',
+            connection: {
+                ...connection,
+                password: '##########' // hide password
+            }
         };
 
-        // test connection
-        if (options?.connect?.onInit) {
-            this.connect();
+        this.query = PostgresQuery.init(this.db, this.options);
+
+        // test if connection can be established
+        if (this.options.connect?.testOnInit) {
+            (async () => {
+                await this.connect();
+            })();
         }
-
-        // query execution
-        this.query = new PostgresQuery(this.db, {
-            queryError: options.query?.error
-        });
     }
 
+    queryInit(table: string) {
+        return PostgresQuery.init(this.db, this.options, table);
+    }
+
+    // find = new PostgresQuery(this.db, this.options, 'find');
+
+    /**
+     * Attempts to establish connection to database
+     * @returns
+     */
     async connect() {
-        try {
-            const connection = await this.db.connect();
-            this.connectionStatus.status = 'CONNECTED';
-            connection.done(true);
-        } catch (e: any) {
-            this.connectionStatus.message = e.message;
-            this.connectionStatus.status = 'FAILED';
-        }
-    }
+        return this.db
+            .connect()
+            .then((c) => {
+                c.done(true);
+                this._status.status = 'CONNECTED';
 
-    /**
-     * Tests if connection to database can be established
-     */
-    async status(): Promise<ConnectionStatus> {
-        return this.connectionStatus;
-
-        try {
-            const connection = await this.db.connect();
-            const { client } = connection;
-            connection.done(true);
-            // if (options.logging) {
-            //     console.log(
-            //         chalk.green(
-            //             `Connected to Database "${client.database}" on ${client.host}:${client.port} with user "${client.user}"`
-            //         )
-            //     );
-            // }
-            return {
-                status: 'CONNECTED',
-                connection: {
-                    host: this.connectionConfig.host,
-                    port: this.connectionConfig.port,
-                    database: this.connectionConfig.database,
-                    user: this.connectionConfig.user,
-                    password: this.connectionConfig.password
+                // log or return onSuccess
+                if (this.options?.connect?.onSuccess) {
+                    this.options?.connect?.onSuccess(this._status.connection);
+                } else if (this.options?.connect?.logConnect) {
+                    const { host, database, user, port } =
+                        this._status.connection;
+                    console.log(
+                        chalk.green(
+                            `Connected to Database "${database}" on ${host}:${port} with user "${user}"`
+                        )
+                    );
                 }
-            };
-        } catch (err: any) {
-            // if (options.logging) {
-            //     console.error(
-            //         chalk.red(`Database Connection failed (${err.message})`)
-            //     );
-            //     console.error(`Host\t\t${this.connectionConfig.host}`);
-            //     console.error(`Port\t\t${this.connectionConfig.port}`);
-            //     console.error(`Database\t${this.connectionConfig.database}`);
-            //     console.error(`User\t\t${this.connectionConfig.user}`);
-            //     console.error(`Password\t${this.connectionConfig.password}`);
-            // }
-            return {
-                status: 'FAILED',
-                message: err.message,
-                connection: {
-                    host: this.connectionConfig.host,
-                    port: this.connectionConfig.port,
-                    database: this.connectionConfig.database,
-                    user: this.connectionConfig.user,
-                    password: this.connectionConfig.password
+                return this.status();
+            })
+            .catch((err) => {
+                const code = err.code as string;
+                const error: DatabaseConnectionError = {
+                    code: err.code,
+                    // error: ConnectionErrorTypes[code],
+                    error: ConnectionErrorTypes.ECONNREFUSED,
+                    message: err.message
+                };
+
+                // status
+                this._status.status = 'FAILED';
+                this._status.error = error;
+
+                // log or return onFailed
+                if (this.options?.connect?.onFailed) {
+                    this.options?.connect?.onFailed(
+                        error,
+                        this._status.connection
+                    );
+                } else if (this.options?.connect?.logConnect) {
+                    const { host, database, user, port } =
+                        this._status.connection;
+                    console.error(
+                        chalk.red(`DB connection failed (${err.message})`)
+                    );
+                    console.error(`Host\t\t${host}`);
+                    console.error(`Port\t\t${port}`);
+                    console.error(`Database\t${database}`);
+                    console.error(`User\t\t${user}`);
                 }
+
+                return this.status();
+            });
+    }
+
+    /**
+     *
+     * @returns
+     * Status of database connection
+     */
+    status() {
+        return this._status;
+    }
+
+    /**
+     * Extends PostgresClient with custom respositories that can be used throughout the application
+     * @param databaseRespos
+     * Respositories as key-value pairs
+     * @returns
+     * Instantiated respositories
+     */
+    registerRepositories<R extends Record<string, typeof DatabaseRepository>>(
+        databaseRespos: R
+    ): RegisteredRepositories<R> {
+        return Object.entries(databaseRespos).reduce((acc, [key, Repo]) => {
+            console.log(Repo.prototype);
+            const query = PostgresQuery.init(this.db, this.options);
+            const queryInit = this.queryInit;
+            const repo = new Repo(this.db, query);
+
+            console.log(repo);
+
+            return {
+                ...acc,
+                [key]: repo
             };
-        }
-    }
-
-    /**
-     * Creates Query Suite which simplifies queries and incorporates types
-     * @param table
-     * @returns query and config methods
-     */
-    newQuerySuite<M>(table: string) {
-        const query = new PostgresQuery(this.db, {
-            queryError: this.initOptions.query?.error,
-            table
-        });
-
-        const suite = new QuerySuite<M>(table);
-        return {
-            config: suite,
-            query
-        };
-    }
-
-    /**
-     * Closes the connection
-     */
-    async close() {
-        await this.db.$pool.end();
+        }, {}) as RegisteredRepositories<R>;
     }
 }

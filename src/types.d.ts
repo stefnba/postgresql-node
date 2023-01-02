@@ -1,80 +1,111 @@
-import pgPromise, { QueryFile } from 'pg-promise';
-import { QueryErrorCodes } from './constants';
-import { filterOperators } from './filter';
+import { IDatabase, QueryFile } from 'pg-promise';
+import { QueryErrorTypes, ConnectionErrorTypes } from './constants';
+import PostgresQuery from './query';
+import DatabaseRepository from './repository';
 
-// Client
-export type DatabaseConnConfig = {
-    host: string | undefined;
-    port: number | undefined;
-    database: string | undefined;
-    user: string | undefined;
+export type Database = IDatabase<object>;
+
+export type DatabaseConnection = {
+    host?: string;
+    port?: number;
+    database: string;
+    user: string;
     password: string;
 };
-export type ConnectionStatus = {
-    status: 'CONNECTED' | 'FAILED' | 'CONNECTING' | 'DISCONNECTED';
-    message?: string;
-    connection: DatabaseConnConfig;
+
+export type DatabaseStatus = {
+    status: 'CONNECTED' | 'FAILED' | 'INIT';
+    connection: DatabaseConnection;
+    error?: DatabaseConnectionError;
 };
-export type ConnectionStatusParams = {
-    logging: boolean;
-};
-export type ClientInitOptions = {
+
+export type DatabaseOptions = {
     connect?: {
-        onInit?: boolean;
-        error?: CustomConnectError;
+        testOnInit?: boolean;
+        logConnect?: boolean;
+        onSuccess?: (connection: DatabaseConnection) => void;
+        onFailed?: (
+            error: DatabaseConnectionError,
+            connection: DatabaseConnection
+        ) => void;
     };
     query?: {
-        error?: CustomQueryError;
+        onError?: () => void;
+        onReturn?: () => void;
     };
+};
+
+export type DatabaseConnectionError = {
+    message: string;
+    code: string;
+    error: ConnectionErrorTypes;
+    hint?: string;
+};
+
+// Repositories
+export type RegisteredRepositories<
+    Type extends Record<string, typeof DatabaseRepository>
+> = {
+    [Properties in keyof Type]: InstanceType<Type[Properties]>;
+};
+
+// Errors
+export type QueryErrorArgs = {
+    table: string | undefined;
+    command: QueryCommands | undefined;
+    message: string;
+    hint?: string;
+    query: string;
+    type: QueryErrorTypes;
+    position?: number;
+    cause?: Error & { code?: string };
+};
+
+export type ConnectionErrorArgs = {
+    connection: DatabaseConnection;
+    message: string;
 };
 
 // Query
-export type QueryInitConfig = {
-    queryError?: CustomQueryError;
-    table?: string;
-};
-export type QueryInputFormat = string | pgPromise.QueryFile;
-export type FindOneQueryParams = {
-    query: QueryInputFormat;
-    filter?: string;
-    params?: Record<string, unknown>;
-};
-export type FindManyQueryParams = FindOneQueryParams & {
-    pagination?: PaginationParams;
-};
-export type CreateOneQueryParams = {
-    table?: string;
-    conflict?: QueryInputFormat;
-    data: Record<string, unknown>;
-    columns: ColumnSet;
-    returning?: QueryInputFormat;
-};
-export type UpdateOneQueryParams = CreateOneQueryParams & {
-    filter?: string;
-};
-export type UpdateManyQueryParams = Omit<UpdateOneQueryParams, 'data'> & {
-    data: Array<Record<string, unknown>>;
-};
-export type CreateManyQueryParams = Omit<CreateOneQueryParams, 'data'> & {
-    data: Array<Record<string, unknown>>;
-};
-
-export type QueryCommands = 'SELECT' | 'UPDATE' | 'CREATE';
-export type QueryReturnMode = 'MANY' | 'ONE' | 'ANY';
+export type QueryInput = string | QueryFile;
+export type QueryCommands = 'SELECT' | 'UPDATE' | 'INSERT';
 export type QueryClauses =
     | 'WHERE'
     | 'RETURNING'
     | 'CONFLICT'
     | 'LIMIT'
-    | 'OFFSET';
+    | 'OFFSET'
+    | 'ORDER';
+export type QueryConcatenationParams = Array<
+    | QueryInput
+    | {
+          type: QueryClauses;
+          query?: QueryInput;
+      }
+>;
 
-export type QueryConnectArgs = {
-    message: string;
+export type QueryInit = {
+    find: PostgresQuery<FindQueryParams>;
+    add: PostgresQuery<AddQueryParams>;
+    update: PostgresQuery<UpdateQueryParams>;
 };
 
-export type ChainQueryObject = {
-    type: QueryClauses;
-    query: QueryInputFormat | undefined;
+export type FindQueryParams = {
+    query: QueryInput;
+    params?: object;
+    filter?: object;
+};
+
+export type AddQueryParams = {
+    data: object | object[];
+    columns?: Array<string>;
+    params?: object;
+    returning?: QueryInput;
+    table?: string;
+};
+
+export type UpdateQueryParams = AddQueryParams & {
+    filter?: object;
 };
 
 // Filters
@@ -83,47 +114,3 @@ export type FilterOperatorParams = {
     value: unknown;
     alias: string;
 };
-export type FilterOperators = keyof typeof filterOperators;
-
-// Pagination
-export type PaginationParams = {
-    page: number;
-    pageSize?: number;
-};
-
-// Errors
-export type CustomQueryError = (err: QueryErrorArgs) => void;
-export type CustomConnectError = (
-    err: QueryConnectArgs,
-    connection: DatabaseConnConfig
-) => void;
-export type QueryErrorArgs = {
-    table: string | undefined;
-    command: QueryCommands | undefined;
-    message: string;
-    hint?: string;
-    query: string;
-    code: QueryErrorCodes;
-    position?: number;
-    cause?: Error;
-};
-
-// QuerySuite
-export type ColumnSetsParams<M> = Record<string, ColumnSet<M>>;
-export type ColumnSets<T> = Record<keyof T, ColumnSet>;
-export type QuerySetsParams = Record<string, string>;
-export type QuerySets<T> = Record<keyof T, QueryFile>;
-export type FilterSetsParams<M> = Record<
-    string,
-    | { column: keyof M; operator: FilterOperators; alias?: string }
-    | FilterOperators
->;
-
-// ColumnSets
-export type ColumnSet<M = undefined> = M extends undefined
-    ? Array<string | { name: string; optional: boolean }>
-    : Array<
-          | { name: keyof M; optional: boolean }
-          | keyof M
-          | `${string & keyof M}?`
-      >;
