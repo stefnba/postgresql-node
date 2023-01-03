@@ -44,10 +44,11 @@ export type DatabaseConnectionError = {
 
 // Repositories
 export type RegisteredRepositories<
-    Type extends Record<string, typeof DatabaseRepository>
+    T extends Record<string, R>,
+    R extends DatabaseRepository
 > = {
-    [Properties in keyof Type]: Omit<
-        InstanceType<Type[Properties]>,
+    [Properties in keyof T]: Omit<
+        T[Properties],
         'queryInit' | 'filters' | 'queries' | 'columns' | 'table' | 'query'
     >;
 };

@@ -4,7 +4,7 @@ import { QueryInit } from './types';
 
 const joinPath = path.join;
 
-export default class DatabaseRepository<M = undefined> {
+export default abstract class DatabaseRepository<M = void> {
     // protected readonly db: Database;
     query!: QueryInit;
     /**
@@ -23,7 +23,14 @@ export default class DatabaseRepository<M = undefined> {
      */
     protected queries?: Record<string, string | QueryFile>;
 
-    columnSet(columns: Array<string>) {
+    columns?: Record<string, Array<M extends void ? string : keyof M>>;
+
+    /**
+     *
+     * @param columns
+     * @returns
+     */
+    protected defineColumns(columns: Array<M extends void ? string : keyof M>) {
         return columns;
     }
 

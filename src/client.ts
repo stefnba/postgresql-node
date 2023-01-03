@@ -141,11 +141,12 @@ export default class PostgresClient {
      * @returns
      * Instantiated respositories
      */
-    registerRepositories<R extends Record<string, typeof DatabaseRepository>>(
-        databaseRespos: R
-    ): RegisteredRepositories<R> {
-        return Object.entries(databaseRespos).reduce((acc, [key, Repo]) => {
-            const repo = new Repo();
+    registerRepositories<
+        T extends Record<string, R>,
+        R extends DatabaseRepository
+    >(databaseRespos: T): RegisteredRepositories<T, R> {
+        return Object.entries(databaseRespos).reduce((acc, [key, repo]) => {
+            // const repo = new Repo();
 
             // attach query
             repo.query = this.queryInit(repo.table);
@@ -154,6 +155,6 @@ export default class PostgresClient {
                 ...acc,
                 [key]: repo
             };
-        }, {}) as RegisteredRepositories<R>;
+        }, {}) as RegisteredRepositories<T, R>;
     }
 }

@@ -4,6 +4,7 @@ import PostgresClient from './client';
 export type User = {
     id: number;
     name: string;
+    email: string;
 };
 export type Product = {
     id: number;
@@ -21,12 +22,13 @@ class UserRepo extends DatabaseRepository<User> {
         get: this.readSql('testing/db/queryFiles/test.sql')
     };
 
-    columns = { add: ['email', 'name'] };
+    // columns = { add: this.defineColumnSet(['id', 'name']) };
+    columns = { add: this.defineColumns(['email', 'name']) };
 
     // queryFileBaseDir = [__dirname, 'sql'];
 
     add(data: object) {
-        // const cs = this.columnSet();
+        // const cs = this.columnSet(['id', 'name']);
         return this.query.add.one({
             data,
             returning: '*',
@@ -109,11 +111,11 @@ const main = async () => {
     });
 
     const QueryRepositories = client.registerRepositories({
-        user: UserRepo,
-        product: ProductRepo
+        user: new UserRepo(),
+        product: new ProductRepo()
     });
 
-    await QueryRepositories.user.retrieve(1);
+    await QueryRepositories.user.list();
     await QueryRepositories.user.add({ email: 'me', name: 'asdfdsf' });
 
     const { query } = client;
@@ -137,3 +139,52 @@ const main = async () => {
 };
 
 main();
+
+export type Test<R extends Base, T extends Record<string, R>> = {
+    [Properties in keyof T]: T[Properties];
+};
+
+const repo = <R extends Base, T extends Record<string, R>>(
+    repos: T
+): Test<R, T> => {
+    return Object.entries(repos).reduce((acc, [key, repo]) => {
+        return {
+            ...acc,
+            [key]: repo
+        };
+    }, {}) as Test<R, T>;
+};
+
+abstract class Base<M = void> {
+    // protected columns?: Array<M extends undefined ? string : keyof M>;
+    // columns?: Array<M extends void ? string : keyof M>;
+
+    constructor() {
+        const a = 1;
+    }
+
+    // protected addCols(columns: Array<string>): Array<string>;
+    // protected addCols(columns: Array<keyof M>): Array<keyof M>;
+    protected addCols(columns: Array<M extends void ? string : keyof M>) {
+        return columns;
+    }
+}
+
+const addCols = <M>(columns: Array<keyof M>) => {
+    return 1;
+};
+
+class Sub extends Base<User> {
+    find() {
+        return 1;
+    }
+
+    columns = this.addCols(['id', 'name', 'id', 'name']);
+    // columns = addCols<User>(['name']);
+}
+
+const b = repo({
+    user: new Sub()
+});
+
+// const a = new Sub<User>(['id', 'name']);
