@@ -84,7 +84,8 @@ export class ConnectionError extends Error {
         | 'AuthFailed'
         | 'DatabaseNotFound'
         | 'HostNotFound'
-        | 'PortNotResponding';
+        | 'PortNotResponding'
+        | 'RoleNotFound';
 
     constructor({ connection, message, cause }: ConnectionErrorArgs) {
         super(message);
@@ -97,6 +98,7 @@ export class ConnectionError extends Error {
             if (cause.code === 'ECONNREFUSED') this.PortNotResponding();
             if (cause.code === '3D000') this.dbNotFound();
             if (cause.code === '28P01') this.authFailed();
+            if (cause.code === '28000') this.roleNotFound();
         }
     }
 
@@ -123,5 +125,9 @@ export class ConnectionError extends Error {
     private dbNotFound() {
         this.type = 'DatabaseNotFound';
         this.message = `Database "${this.connection.database}" not found`;
+    }
+    private roleNotFound() {
+        this.type = 'RoleNotFound';
+        this.message = `Role "${this.connection.user}" not found`;
     }
 }
