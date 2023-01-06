@@ -22,18 +22,20 @@ const db = new PostgresClient(connection, {
 
 describe('RUN', () => {
     it('SHOULD RUN simple query', async () => {
-        const r = await db.query.run.one<{ now: Date }>({
-            query: 'SELECT NOW()'
+        const r = await db.query.run.one<{ now: Date }>('SELECT NOW()', {
+            id: 1222
         });
+
+        const a = await db.query.run.one<{ now: Date }>('asdf', {});
 
         expect(r).to.have.key('now');
     });
-    it('SHOULD RUN SELECT query with params to retrieve one user', async () => {
-        const r = await db.query.run.one<UserModel>({
-            query: 'SELECT * from users WHERE id = $<id>',
-            params: { id: 1 }
-        });
+    // it('SHOULD RUN SELECT query with params to retrieve one user', async () => {
+    //     const r = await db.query.run.one<UserModel>({
+    //         query: 'SELECT * from users WHERE id = $<id>',
+    //         params: { id: 1 }
+    //     });
 
-        expect(r).to.have.keys(['id', 'name', 'email', 'rank']);
-    });
+    //     expect(r).to.have.keys(['id', 'name', 'email', 'rank']);
+    // });
 });

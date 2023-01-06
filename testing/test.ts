@@ -107,6 +107,11 @@ const main = async () => {
         // }
     });
 
+    console.log(
+        111,
+        await client.query.run.many<User>('SELECT * FROM users', {})
+    );
+
     const QueryRepositories = client.registerRepositories({
         user: UserRepo,
         product: ProductRepo
@@ -115,11 +120,11 @@ const main = async () => {
     const user111 = await QueryRepositories.user.list({ id: [1, 2] });
     const user121 = await QueryRepositories.user.retrieve(23);
     console.log(user121);
-    // await QueryRepositories.user.add({
-    //     email: 'me',
-    //     name: 'asdfdsf',
-    //     rank: 111
-    // });
+    await QueryRepositories.user.add({
+        email: 'me',
+        name: 'asdfdsf',
+        rank: 111
+    });
 
     const { query } = client;
 
@@ -142,52 +147,3 @@ const main = async () => {
 };
 
 main();
-
-export type Test<R extends Base, T extends Record<string, R>> = {
-    [Properties in keyof T]: T[Properties];
-};
-
-const repo = <R extends Base, T extends Record<string, R>>(
-    repos: T
-): Test<R, T> => {
-    return Object.entries(repos).reduce((acc, [key, repo]) => {
-        return {
-            ...acc,
-            [key]: repo
-        };
-    }, {}) as Test<R, T>;
-};
-
-abstract class Base<M = void> {
-    // protected columns?: Array<M extends undefined ? string : keyof M>;
-    // columns?: Array<M extends void ? string : keyof M>;
-
-    constructor() {
-        const a = 1;
-    }
-
-    // protected addCols(columns: Array<string>): Array<string>;
-    // protected addCols(columns: Array<keyof M>): Array<keyof M>;
-    protected addCols(columns: Array<M extends void ? string : keyof M>) {
-        return columns;
-    }
-}
-
-const addCols = <M>(columns: Array<keyof M>) => {
-    return 1;
-};
-
-class Sub extends Base<User> {
-    find() {
-        return 1;
-    }
-
-    columns = this.addCols(['id', 'name', 'id', 'name']);
-    // columns = addCols<User>(['name']);
-}
-
-const b = repo({
-    user: new Sub()
-});
-
-// const a = new Sub<User>(['id', 'name']);

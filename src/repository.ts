@@ -2,7 +2,8 @@ import { QueryFile } from 'pg-promise';
 import path from 'path';
 
 import { filterOperators } from './filter';
-import type { FilterSet, QueryInit } from './types';
+import type { FilterSet } from './types';
+import PostgresQuery from './query';
 
 const joinPath = path.join;
 
@@ -10,7 +11,7 @@ export default class DatabaseRepository<M> {
     /**
      * Query client that can be used in methods to run queries against database connection
      */
-    query!: QueryInit;
+    query!: PostgresQuery;
     /**
      * Name of table in database
      * */

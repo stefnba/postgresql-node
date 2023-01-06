@@ -116,7 +116,8 @@ export type QueryConcatenationParams = Array<
 
 export type BatchQuery = <R>(
     callback: BatchQueryCallback<R>
-) => void | Promise<void>;
+) => unknown | Promise<unknown>;
+
 export type TransactionClient = ITask<object>;
 
 export type BatchQueryCallback<R = any> = (t: PostgresQuery) => Promise<R>;
@@ -127,6 +128,7 @@ export type FindQueryParams = {
     filter?: string;
     pagination?: Pagination;
 };
+
 export type RunQueryParams = {
     query: QueryInput;
     params?: object;

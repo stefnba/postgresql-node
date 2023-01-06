@@ -12,6 +12,7 @@ import {
     BatchQuery
 } from './types';
 import executeQuery from './execution';
+import { QueryError } from './error';
 
 export default class PostgresQuery {
     table?: string;
@@ -54,42 +55,64 @@ export default class PostgresQuery {
     }
 }
 
-const query = <P>(
+function query<
+    P extends
+        | FindQueryParams
+        | RunQueryParams
+        | AddQueryParams
+        | UpdateQueryParams
+>(
     client: Database | TransactionClient,
     options: DatabaseOptions,
     command: QueryExecutionCommands,
     table?: string
-) => {
-    return {
-        one: async <R>(params: P): Promise<R> => {
-            const result = await executeQuery(
-                client,
-                options,
-                command,
-                params,
-                table
-            );
-
-            if (Array.isArray(result)) {
-                if (result.length === 1) {
-                    return result[0];
-                }
-                throw new Error('');
+) {
+    async function one<R>(params: P): Promise<R>;
+    async function one<R>(query: string, params?: object): Promise<R>;
+    async function one<R>(params: P | string): Promise<R> {
+        const result = await executeQuery(
+            client,
+            options,
+            command,
+            params,
+            table
+        );
+        if (Array.isArray(result)) {
+            if (result.length === 1) {
+                return result[0];
             }
-            return result;
-        },
-        many: async <R>(params: P): Promise<R[]> => {
-            const result = await executeQuery(
-                client,
-                options,
+            throw new QueryError({
+                table,
                 command,
-                params,
-                table
-            );
-            return result;
-        },
-        none: async (params: P): Promise<void> => {
-            await executeQuery(client, options, command, params, table);
+                message: 'QueryResultError',
+                query: ''
+            });
         }
+        return result;
+    }
+
+    async function many<R>(params: P): Promise<R[]>;
+    async function many<R>(query: string, params?: object): Promise<R[]>;
+    async function many<R>(params: P | string): Promise<R[]> {
+        const result = await executeQuery(
+            client,
+            options,
+            command,
+            params,
+            table
+        );
+        return result;
+    }
+
+    async function none(params: P): Promise<void>;
+    async function none(query: string, params?: object): Promise<void>;
+    async function none(params: P | string): Promise<void> {
+        await executeQuery(client, options, command, params, table);
+    }
+
+    return {
+        one,
+        many,
+        none
     };
-};
+}

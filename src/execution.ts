@@ -2,7 +2,11 @@ import {
     Database,
     DatabaseOptions,
     TransactionClient,
-    QueryExecutionCommands
+    QueryExecutionCommands,
+    FindQueryParams,
+    AddQueryParams,
+    UpdateQueryParams,
+    RunQueryParams
 } from './types';
 import { pgHelpers, concatenateQuery, pgFormat } from './utils';
 import pagination from './pagination';
@@ -12,13 +16,26 @@ const executeQuery = async (
     client: Database | TransactionClient,
     options: DatabaseOptions,
     command: QueryExecutionCommands,
-    params: any,
+    params:
+        | string
+        | (
+              | FindQueryParams
+              | AddQueryParams
+              | UpdateQueryParams
+              | RunQueryParams
+          ),
     table?: string
 ) => {
-    let query: string | null = null;
+    let query = '';
 
-    if (command === 'SELECT') {
-        const { query: q, filter, pagination: p } = params;
+    if (command === 'RUN') {
+        if (typeof params === 'string') {
+            query = params;
+        }
+    }
+
+    if (command === 'SELECT' && typeof params !== 'string') {
+        const { query: q, filter, pagination: p } = params as FindQueryParams;
         query = concatenateQuery([
             q,
             { type: 'WHERE', query: filter },
@@ -26,7 +43,7 @@ const executeQuery = async (
             { query: pagination.page(p), type: 'OFFSET' }
         ]);
     }
-    if (command === 'UPDATE') {
+    if (command === 'UPDATE' && typeof params !== 'string') {
         const {
             data,
             columns,
@@ -34,7 +51,7 @@ const executeQuery = async (
             returning,
             filter,
             conflict
-        } = params;
+        } = params as UpdateQueryParams;
 
         const t = t_ || table;
 
@@ -51,8 +68,14 @@ const executeQuery = async (
             { type: 'CONFLICT', query: conflict }
         ]);
     }
-    if (command === 'INSERT') {
-        const { data, columns, returning, table: t_, conflict } = params;
+    if (command === 'INSERT' && typeof params !== 'string') {
+        const {
+            data,
+            columns,
+            returning,
+            table: t_,
+            conflict
+        } = params as AddQueryParams;
 
         const t = t_ || table;
 
@@ -67,37 +90,31 @@ const executeQuery = async (
             { type: 'CONFLICT', query: conflict }
         ]);
     }
-    if (command === 'RUN') {
-        query = params.query;
-    }
 
-    if (!query) {
+    if (!query || query.trim() === '') {
         throw Error('');
     }
 
-    if (params.params) {
-        query = pgFormat(query, params.params);
+    if (typeof params !== 'string' && params.params) {
+        query = pgFormat(query.trim(), params.params);
     }
 
     return client
         .any(query)
         .then((r) => {
             if (options.query?.onReturn) {
-                options.query?.onReturn(r, query as string);
+                options.query?.onReturn(r, query);
             }
             return r;
         })
         .catch((err) => {
             if (options.query?.onError) {
-                options.query?.onError(
-                    { message: err.message },
-                    query as string
-                );
+                options.query?.onError({ message: err.message }, query);
             } else {
                 throw new QueryError({
                     command: command,
                     message: err.message,
-                    query: query as string,
+                    query,
                     table: table,
                     cause: err
                 });
