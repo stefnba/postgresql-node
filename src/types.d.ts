@@ -62,7 +62,7 @@ export type Repository<R> = Omit<
 // Errors
 export type QueryErrorArgs = {
     table: string | undefined;
-    command: QueryInitCommands | undefined;
+    command: QueryExecutionCommands | undefined;
     message: string;
     hint?: string;
     query: string;
@@ -98,7 +98,7 @@ export type PostgresErrorObject = Error & {
 // Query
 export type QueryInput = string | QueryFile;
 export type QueryCommands = 'SELECT' | 'UPDATE' | 'INSERT';
-export type QueryInitCommands = QueryCommands | 'RUN' | 'TRANSACTION';
+export type QueryExecutionCommands = QueryCommands | 'RUN';
 export type QueryClauses =
     | 'WHERE'
     | 'RETURNING'
@@ -114,17 +114,12 @@ export type QueryConcatenationParams = Array<
       }
 >;
 
-export type QueryInit = {
-    find: PostgresQuery<FindQueryParams>;
-    add: PostgresQuery<AddQueryParams>;
-    update: PostgresQuery<UpdateQueryParams>;
-    run: PostgresQuery<RunQueryParams>;
-    transaction: <R>(callback: BatchQueryCallback<R>) => void | Promise<void>;
-};
-
+export type BatchQuery = <R>(
+    callback: BatchQueryCallback<R>
+) => void | Promise<void>;
 export type TransactionClient = ITask<object>;
 
-export type BatchQueryCallback<R = any> = (t: QueryInit) => Promise<R>;
+export type BatchQueryCallback<R = any> = (t: PostgresQuery) => Promise<R>;
 
 export type FindQueryParams = {
     query: QueryInput;

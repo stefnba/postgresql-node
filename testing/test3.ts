@@ -13,19 +13,11 @@ const main = async () => {
 
     const query = client.query;
 
-    console.log(query);
-
     await query.transaction(async (t) => {
-        // console.log(11, await t.any("UPDATE users SET name = 'st'"));
-        console.log(
-            11,
-            // await t.run.one({ query: "UPDATE users SET name = 'st'" })
-            await t.run.one({ query: 'SELECT NOW()' })
-        );
-        console.log(
-            11,
-            await t.run.none({ query: "UPDATE users SET rank = '1233333A'" })
-        );
+        await t.run.none({
+            query: "UPDATE users SET name = 'asdfsfdsadf323322'"
+        });
+        await t.add.none({ data: { id: 1 }, table: 'users' });
     });
 };
 

@@ -9,14 +9,13 @@ import type {
     RegisteredRepositories,
     Database,
     DatabaseOptions,
-    QueryInit,
     RegisterRepositoriesParams
 } from './types';
 import { ConnectionError } from './error';
 
 export default class PostgresClient {
     db: Database;
-    readonly query: QueryInit;
+    readonly query: PostgresQuery;
     private connectionStatus: DatabaseConnectionStatus;
     private options: DatabaseOptions;
 
@@ -69,8 +68,8 @@ export default class PostgresClient {
      * @returns
      * New PostgresQuery instance
      */
-    private queryInit(table?: string): QueryInit {
-        return PostgresQuery.init(this.db, this.options, table);
+    private queryInit(table?: string) {
+        return new PostgresQuery(this.db, this.options, table);
     }
 
     /**

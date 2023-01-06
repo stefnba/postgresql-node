@@ -1,7 +1,7 @@
 import { QueryErrorTypes } from './constants';
 import type {
     QueryErrorArgs,
-    QueryInitCommands,
+    QueryExecutionCommands,
     ConnectionErrorArgs,
     DatabaseConnectionParams,
     PostgresErrorObject,
@@ -13,7 +13,7 @@ import type {
  */
 export class QueryError extends Error {
     type?: QueryErrorTypes;
-    command?: QueryInitCommands;
+    command?: QueryExecutionCommands;
     query?: string;
     table?: string;
     schema?: string;
@@ -109,7 +109,6 @@ export class ConnectionError extends Error {
             message: this.message
         };
     }
-
     private hostNotFound() {
         this.type = 'HostNotFound';
         this.message = `Connection to the host "${this.connection.host}" could not be established`;

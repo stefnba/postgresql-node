@@ -18,7 +18,7 @@ export default class PostgresBatchQuery {
     }
 
     private initQuery(t: TransactionClient) {
-        return PostgresQuery.init(t, this.options);
+        return new PostgresQuery(t, this.options);
     }
 
     async executeTransaction(callback: BatchQueryCallback): Promise<void> {
