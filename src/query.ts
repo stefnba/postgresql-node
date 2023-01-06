@@ -7,21 +7,22 @@ import {
     FindQueryParams,
     AddQueryParams,
     UpdateQueryParams,
-    QueryCommands,
-    QueryConcatenationParams
+    QueryConcatenationParams,
+    RunQueryParams,
+    QueryInitCommands
 } from './types';
 import { pgFormat, pgHelpers } from './utils';
 
 export default class PostgresQuery<P extends FindQueryParams | AddQueryParams> {
     private db: Database;
-    private command: QueryCommands;
+    private command: QueryInitCommands;
     private dbOptions: DatabaseOptions;
     table?: string;
 
     constructor(
         client: Database,
         options: DatabaseOptions,
-        command: QueryCommands,
+        command: QueryInitCommands,
         table?: string
     ) {
         this.db = client;
@@ -54,6 +55,12 @@ export default class PostgresQuery<P extends FindQueryParams | AddQueryParams> {
                 client,
                 options,
                 'INSERT',
+                table
+            ),
+            run: new PostgresQuery<RunQueryParams>(
+                client,
+                options,
+                'RUN',
                 table
             )
         };
@@ -196,6 +203,11 @@ export default class PostgresQuery<P extends FindQueryParams | AddQueryParams> {
         ]);
     }
 
+    private buildRunQuery(params: RunQueryParams) {
+        const { query } = params;
+        return this.concatenateQuery([query]);
+    }
+
     /**
      * Constructs a INSERT query from individual params
      * @param params object
@@ -261,6 +273,9 @@ export default class PostgresQuery<P extends FindQueryParams | AddQueryParams> {
         }
         if (this.command === 'UPDATE') {
             return this.builUpdateQuery(params as UpdateQueryParams);
+        }
+        if (this.command === 'RUN') {
+            return this.buildRunQuery(params as RunQueryParams);
         }
         return '';
     }

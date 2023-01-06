@@ -1,6 +1,5 @@
 import { IDatabase, QueryFile } from 'pg-promise';
 
-import { QueryErrorTypes, ConnectionErrorTypes } from './constants';
 import { ConnectionError } from './error';
 import PostgresQuery from './query';
 import { filterOperators } from './filter';
@@ -63,7 +62,7 @@ export type Repository<R> = Omit<
 // Errors
 export type QueryErrorArgs = {
     table: string | undefined;
-    command: QueryCommands | undefined;
+    command: QueryInitCommands | undefined;
     message: string;
     hint?: string;
     query: string;
@@ -99,6 +98,7 @@ export type PostgresErrorObject = Error & {
 // Query
 export type QueryInput = string | QueryFile;
 export type QueryCommands = 'SELECT' | 'UPDATE' | 'INSERT';
+export type QueryInitCommands = QueryCommands | 'RUN';
 export type QueryClauses =
     | 'WHERE'
     | 'RETURNING'
@@ -118,6 +118,7 @@ export type QueryInit = {
     find: PostgresQuery<FindQueryParams>;
     add: PostgresQuery<AddQueryParams>;
     update: PostgresQuery<UpdateQueryParams>;
+    run: PostgresQuery<RunQueryParams>;
 };
 
 export type FindQueryParams = {
@@ -125,6 +126,10 @@ export type FindQueryParams = {
     params?: object;
     filter?: string;
     pagination?: Pagination;
+};
+export type RunQueryParams = {
+    query: QueryInput;
+    params?: object;
 };
 
 export type Pagination = {

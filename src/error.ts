@@ -1,7 +1,7 @@
 import { QueryErrorTypes } from './constants';
 import type {
     QueryErrorArgs,
-    QueryCommands,
+    QueryInitCommands,
     ConnectionErrorArgs,
     DatabaseConnectionParams,
     PostgresErrorObject,
@@ -13,7 +13,7 @@ import type {
  */
 export class QueryError extends Error {
     type?: QueryErrorTypes;
-    command?: QueryCommands;
+    command?: QueryInitCommands;
     query?: string;
     table?: string;
     schema?: string;
@@ -48,6 +48,7 @@ export class QueryError extends Error {
             this.code = code;
 
             if (code === '23502') this.notNullConstraint();
+            // syntax error
         }
 
         Object.setPrototypeOf(this, new.target.prototype);
