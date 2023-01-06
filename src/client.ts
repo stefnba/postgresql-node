@@ -2,42 +2,52 @@ import pgPromise from 'pg-promise';
 import chalk from 'chalk';
 
 import PostgresQuery from './query';
-import { ConnectionErrorTypes } from './constants';
 
-import DatabaseRepository from './repository';
 import type {
-    DatabaseConnection,
-    DatabaseStatus,
+    DatabaseConnectionParams,
+    DatabaseConnectionStatus,
     RegisteredRepositories,
     Database,
     DatabaseOptions,
-    DatabaseConnectionError,
-    QueryInit
+    QueryInit,
+    RegisterRepositoriesParams
 } from './types';
+import { ConnectionError } from './error';
 
 export default class PostgresClient {
-    readonly db: Database;
+    db: Database;
     readonly query: QueryInit;
-    private _status: DatabaseStatus;
+    private connectionStatus: DatabaseConnectionStatus;
     private options: DatabaseOptions;
 
-    constructor(connection: DatabaseConnection, options: DatabaseOptions) {
-        const pgp = pgPromise();
+    constructor(
+        connection: DatabaseConnectionParams,
+        options: DatabaseOptions = {}
+    ) {
+        const pgp = pgPromise({
+            capSQL: true,
+            noWarnings: options.noWarnings || false
+        });
         this.db = pgp(connection);
 
         this.options = {
             ...options,
             connect: {
                 testOnInit: true,
-                logConnect: true,
+                log: true,
                 ...options.connect
-            }
+            },
+            noWarnings: false
         };
 
-        this._status = {
-            status: 'INIT',
+        this.connectionStatus = {
+            status: 'DISCONNECTED',
+            serverVersion: undefined,
             connection: {
-                ...connection,
+                host: connection.host,
+                port: connection.port,
+                database: connection.database,
+                user: connection.user,
                 password: '##########' // hide password
             }
         };
@@ -59,11 +69,17 @@ export default class PostgresClient {
      * @returns
      * New PostgresQuery instance
      */
-    queryInit(table?: string): QueryInit {
+    private queryInit(table?: string): QueryInit {
         return PostgresQuery.init(this.db, this.options, table);
     }
 
-    // find = new PostgresQuery(this.db, this.options, 'find');
+    /**
+     * Terminates db client and open connection
+     */
+    async close() {
+        return this.db.$pool.end();
+        // await this.db.
+    }
 
     /**
      * Attempts to establish connection to database
@@ -74,44 +90,45 @@ export default class PostgresClient {
             .connect()
             .then((c) => {
                 c.done(true);
-                this._status.status = 'CONNECTED';
+                this.connectionStatus.status = 'CONNECTED';
+                this.connectionStatus.serverVersion = c.client.serverVersion;
 
                 // log or return onSuccess
                 if (this.options?.connect?.onSuccess) {
-                    this.options?.connect?.onSuccess(this._status.connection);
-                } else if (this.options?.connect?.logConnect) {
+                    this.options?.connect?.onSuccess(this.connectionStatus);
+                } else if (this.options?.connect?.log) {
                     const { host, database, user, port } =
-                        this._status.connection;
+                        this.connectionStatus.connection;
                     console.log(
                         chalk.green(
-                            `Connected to Database "${database}" on ${host}:${port} with user "${user}"`
+                            `Connected to Database (version: ${c.client.serverVersion}) "${database}" on ${host}:${port} with user "${user}"`
                         )
                     );
                 }
                 return this.status();
             })
             .catch((err) => {
-                const code = err.code as string;
-                const error: DatabaseConnectionError = {
-                    code: err.code,
-                    // error: ConnectionErrorTypes[code],
-                    error: ConnectionErrorTypes.ECONNREFUSED,
-                    message: err.message
-                };
+                if (!err.code) throw err;
+
+                const error = new ConnectionError({
+                    connection: this.connectionStatus.connection,
+                    message: '',
+                    cause: err
+                });
 
                 // status
-                this._status.status = 'FAILED';
-                this._status.error = error;
+                this.connectionStatus = {
+                    ...this.connectionStatus,
+                    status: 'FAILED',
+                    error: error.public()
+                };
 
                 // log or return onFailed
                 if (this.options?.connect?.onFailed) {
-                    this.options?.connect?.onFailed(
-                        error,
-                        this._status.connection
-                    );
-                } else if (this.options?.connect?.logConnect) {
+                    this.options?.connect?.onFailed(this.connectionStatus);
+                } else if (this.options?.connect?.log) {
                     const { host, database, user, port } =
-                        this._status.connection;
+                        this.connectionStatus.connection;
                     console.error(
                         chalk.red(`DB connection failed (${err.message})`)
                     );
@@ -126,12 +143,14 @@ export default class PostgresClient {
     }
 
     /**
-     *
+     * Returns connection status of database
      * @returns
      * Status of database connection
      */
-    status() {
-        return this._status;
+    async status(): Promise<DatabaseConnectionStatus> {
+        if (this.connectionStatus.status === 'DISCONNECTED')
+            return this.connect();
+        return this.connectionStatus;
     }
 
     /**
@@ -141,12 +160,11 @@ export default class PostgresClient {
      * @returns
      * Instantiated respositories
      */
-    registerRepositories<
-        T extends Record<string, R>,
-        R extends DatabaseRepository
-    >(databaseRespos: T): RegisteredRepositories<T, R> {
-        return Object.entries(databaseRespos).reduce((acc, [key, repo]) => {
-            // const repo = new Repo();
+    registerRepositories<T extends RegisterRepositoriesParams>(
+        databaseRespos: T
+    ): RegisteredRepositories<T> {
+        return Object.entries(databaseRespos).reduce((acc, [key, Repo]) => {
+            const repo = new Repo();
 
             // attach query
             repo.query = this.queryInit(repo.table);
@@ -155,6 +173,6 @@ export default class PostgresClient {
                 ...acc,
                 [key]: repo
             };
-        }, {}) as RegisteredRepositories<T, R>;
+        }, {}) as RegisteredRepositories<T>;
     }
 }

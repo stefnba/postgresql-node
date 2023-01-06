@@ -3,7 +3,8 @@ export enum QueryErrorTypes {
     EmptyQuery = 'EmptyQuery',
     MultipleRowsReturned = 'MultipleRowsReturned',
     ExecutionError = 'ExecutionError',
-    ConstraintViolation = 'ConstraintViolation'
+    ConstraintViolation = 'ConstraintViolation',
+    NotNullViolation = 'NotNullViolation'
 }
 
 export enum ConnectionErrorTypes {
@@ -12,3 +13,5 @@ export enum ConnectionErrorTypes {
     ENOTFOUND = 'HostNotFound',
     ECONNREFUSED = 'PortNotResponding'
 }
+
+export const DEFAULT_PAGE_SIZE = 25;

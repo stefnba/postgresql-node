@@ -1,101 +1,193 @@
-import dotenv from 'dotenv';
+import DatabaseRepository from '../src/repository';
+import PostgresClient from '../src/client';
 
-import PostgresClient from '../src';
-
-dotenv.config();
-
-const connection = {
-    host: process.env.DB_HOST,
-    port: Number(process.env.DB_PORT),
-    database: process.env.DB_NAME,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    max: 30
-};
-
-type UserModel = {
+export type User = {
     id: number;
     name: string;
     email: string;
+    rank: number;
+};
+export type Product = {
+    id: number;
+    product: string;
 };
 
-const db = new PostgresClient(connection);
+export type Tables = 'users';
 
-const c = await db.close();
-console.log(c);
-
-process.exit();
-
-// NORMAL QUERY
-const q = db.query;
-
-// QUERY SUITE
-const userQuerySuite = db.newQuerySuite<UserModel>('users');
-
-const cs = userQuerySuite.config.columnSets({
-    update: ['id', 'name', 'email', { name: 'email', optional: false }],
-    create: ['email', 'id', 'name']
-});
-
-const queries = userQuerySuite.config.querySets(
-    {
-        test: 'test.sql'
-    },
-    [__dirname, 'db/queryFiles']
-);
-
-const filters = userQuerySuite.config.filterSets({
-    id: { column: 'id', operator: 'EQUAL' },
-    email: { column: 'name', operator: 'INCLUDES', alias: 'users' },
-    rank: 'EQUAL'
-});
-
-const run = async () => {
-    const queryPortfolio = {
-        list: () =>
-            userQuerySuite.query.findMany<UserModel>({
-                query: queries.test,
-                filter: filters({ id: 9569721 })
-            }),
-        create: (data: Pick<UserModel, 'email' | 'name' | 'id'>) =>
-            userQuerySuite.query.createOne<UserModel>({
-                data,
-                columns: cs.create,
-                returning: '*',
-                conflict: 'DO NOTHING'
-            })
+class UserRepo extends DatabaseRepository<User> {
+    table = 'users';
+    filters = this.conf.filter({ id: 'INCLUDES' });
+    queries = {
+        get: this.readSql('testing/db/queryFiles/test.sql')
     };
+    columns = { add: this.conf.columns(['email', 'name', 'rank']) };
+    sqlDir = this.conf.sql.directory([__dirname]);
 
-    const c = await queryPortfolio.create({
-        id: 12321321,
-        name: 'testMan',
-        email: 'tests@klajsdfklasdflk.com'
-    });
-    const l = await queryPortfolio.list();
+    add(data: object) {
+        const cs = this.conf.columns(['id', 'name']);
+        return this.query.add.one({
+            data,
+            returning: '*',
+            columns: this.columns.add
+        });
+    }
 
-    console.log(l);
-    console.log(c);
+    update(data: object): Promise<User> {
+        return this.query.update.one({ data });
+    }
 
-    const a = await db.query.createOne<UserModel>({
-        data: {
-            id: 123213291,
-            name: 'testMan',
-            email: 'tests@klajsdfklasdflk.com'
-        },
-        columns: ['id', 'name', 'email'],
-        table: 'users'
-    });
-    const aa = await db.query.createOne<UserModel>({
-        data: {
-            id: 123213934,
-            name: 'testMan',
-            email: 'tests@klajsdfklasdflk.com'
-        },
-        columns: ['name', 'email', { name: 'id', optional: true }],
-        // columns: ['id', { name: 'name', optional: true }, 'email'],
-        table: 'users'
-    });
-    // await db.query.createMany<UserModel>({data: [{}], columns: [] })
+    retrieve(id: number): Promise<User> {
+        return this.query.find.one({
+            query: 'SELECT * FROM users WHERE id = $<id>',
+            params: { id }
+        });
+    }
+
+    list(filters: { id: Array<number> }): Promise<User[]> {
+        return this.query.find.many({
+            query: this.queries.get,
+            filter: this.filter(filters, this.filters)
+        });
+    }
+}
+class ProductRepo extends DatabaseRepository<Product> {
+    table = 'Products';
+
+    add(data: object): Promise<Product> {
+        return this.query.add.one<Product>({ data });
+    }
+
+    find(): Promise<Product> {
+        return this.query.find.one({
+            query: 'SELECT * FROM products'
+        });
+    }
+
+    list(): Promise<Product[]> {
+        return this.query.find.many({
+            query: 'SELECT * FROM products'
+        });
+    }
+
+    total() {
+        return 2;
+    }
+}
+
+const connection = {
+    host: 'localhost',
+    port: 5413,
+    user: 'admin',
+    password: 'password',
+    database: 'app_db'
 };
 
-run();
+const main = async () => {
+    // const client = new PostgresClient(connection, {
+    // connect: {
+    // onFailed(err, connection) {
+    //     console.error('asdfsdf', err, connection);
+    // },
+    // onSuccess({ database }) {
+    //     console.log('asdfasdf', database);
+    // },
+    // testOnInit: true,
+    // logConnect: true
+    // }
+    // });
+
+    const client = new PostgresClient(connection, {
+        // connect: {
+        //     onFailed: (err, connection) => {
+        //         console.log(err, connection);
+        //     }
+        // }
+        // query: {
+        //     onReturn: () => console.log(1)
+        // }
+    });
+
+    const QueryRepositories = client.registerRepositories({
+        user: UserRepo,
+        product: ProductRepo
+    });
+
+    const user111 = await QueryRepositories.user.list({ id: [1, 2] });
+    const user121 = await QueryRepositories.user.retrieve(23);
+    console.log(user121);
+    // await QueryRepositories.user.add({
+    //     email: 'me',
+    //     name: 'asdfdsf',
+    //     rank: 111
+    // });
+
+    const { query } = client;
+
+    // const b = await QueryRepositories.product.list();
+    const users = await query.find.many<User>({
+        query: 'SELECT * FROM users WHERE id = 22',
+        params: { id: 1 }
+    });
+    const user = await query.find.one<User>({
+        query: 'SELECT * FROM users WHERE id = $<id>',
+        params: { id: 1 }
+    });
+
+    // await query.add.one({
+    //     data: { name: 'asdf' },
+    //     table: 'users',
+    //     returning: '*'
+    // });
+    // await query.update.one({ data: { name: 'asdf' }, table: 'users' });
+};
+
+main();
+
+export type Test<R extends Base, T extends Record<string, R>> = {
+    [Properties in keyof T]: T[Properties];
+};
+
+const repo = <R extends Base, T extends Record<string, R>>(
+    repos: T
+): Test<R, T> => {
+    return Object.entries(repos).reduce((acc, [key, repo]) => {
+        return {
+            ...acc,
+            [key]: repo
+        };
+    }, {}) as Test<R, T>;
+};
+
+abstract class Base<M = void> {
+    // protected columns?: Array<M extends undefined ? string : keyof M>;
+    // columns?: Array<M extends void ? string : keyof M>;
+
+    constructor() {
+        const a = 1;
+    }
+
+    // protected addCols(columns: Array<string>): Array<string>;
+    // protected addCols(columns: Array<keyof M>): Array<keyof M>;
+    protected addCols(columns: Array<M extends void ? string : keyof M>) {
+        return columns;
+    }
+}
+
+const addCols = <M>(columns: Array<keyof M>) => {
+    return 1;
+};
+
+class Sub extends Base<User> {
+    find() {
+        return 1;
+    }
+
+    columns = this.addCols(['id', 'name', 'id', 'name']);
+    // columns = addCols<User>(['name']);
+}
+
+const b = repo({
+    user: new Sub()
+});
+
+// const a = new Sub<User>(['id', 'name']);

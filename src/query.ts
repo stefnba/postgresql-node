@@ -1,4 +1,6 @@
 import { QueryFile } from 'pg-promise';
+import { QueryError } from './error';
+import pagination from './pagination';
 import {
     Database,
     DatabaseOptions,
@@ -8,11 +10,12 @@ import {
     QueryCommands,
     QueryConcatenationParams
 } from './types';
-import { pgFormat, pgHelpers, queryToString } from './utils';
+import { pgFormat, pgHelpers } from './utils';
 
 export default class PostgresQuery<P extends FindQueryParams | AddQueryParams> {
     private db: Database;
     private command: QueryCommands;
+    private dbOptions: DatabaseOptions;
     table?: string;
 
     constructor(
@@ -24,6 +27,7 @@ export default class PostgresQuery<P extends FindQueryParams | AddQueryParams> {
         this.db = client;
         this.command = command;
         this.table = table;
+        this.dbOptions = options;
     }
 
     /**
@@ -69,14 +73,15 @@ export default class PostgresQuery<P extends FindQueryParams | AddQueryParams> {
     }
 
     /**
-     *
+     * Concatenate different parts of query and determined if certain clauses, operators need to be inserted
      * @param parts Array of string|QueryFile|object
      * - string
      * - QueryFile
-     * - object with type and query as keys
-     * @returns
+     * - object with keys: type, query
+     * @returns string
+     * Final query with all parts concatenated
      */
-    private concatenateQuery(parts: QueryConcatenationParams) {
+    private concatenateQuery(parts: QueryConcatenationParams): string {
         let fullQuery = '';
 
         parts.forEach((part) => {
@@ -93,6 +98,8 @@ export default class PostgresQuery<P extends FindQueryParams | AddQueryParams> {
 
             // object
             const { query: q, type } = part;
+
+            // return if undefined
             if (q === undefined) return;
             const query = pgFormat(q);
 
@@ -108,13 +115,52 @@ export default class PostgresQuery<P extends FindQueryParams | AddQueryParams> {
                 fullQuery += ` ${clause} ${query}`;
                 return;
             }
+            if (type === 'WHERE') {
+                const clause = 'WHERE';
+                if (
+                    this.queryIncludesClause(fullQuery, clause) ||
+                    this.queryIncludesClause(query, clause)
+                ) {
+                    fullQuery += ` AND ${query}`;
+                    return;
+                }
+                fullQuery += ` ${clause} ${query}`;
+                return;
+            }
             if (type === 'CONFLICT') {
+                const clause = 'CONFLICT ON';
+                if (
+                    this.queryIncludesClause(fullQuery, clause) ||
+                    this.queryIncludesClause(query, clause)
+                ) {
+                    fullQuery += ` ${query}`;
+                    return;
+                }
+                fullQuery += ` ${clause} ${query}`;
                 return;
             }
             if (type === 'LIMIT') {
+                const clause = 'LIMIT';
+                if (
+                    this.queryIncludesClause(fullQuery, clause) ||
+                    this.queryIncludesClause(query, clause)
+                ) {
+                    fullQuery += ` ${query}`;
+                    return;
+                }
+                fullQuery += ` ${clause} ${query}`;
                 return;
             }
             if (type === 'OFFSET') {
+                const clause = 'OFFSET';
+                if (
+                    this.queryIncludesClause(fullQuery, clause) ||
+                    this.queryIncludesClause(query, clause)
+                ) {
+                    fullQuery += ` ${query}`;
+                    return;
+                }
+                fullQuery += ` ${clause} ${query}`;
                 return;
             }
             if (type === 'ORDER') {
@@ -135,18 +181,30 @@ export default class PostgresQuery<P extends FindQueryParams | AddQueryParams> {
 
     /**
      * Constructs a SELECT query from individual params
-     * @param params
+     * @param params object
      *
      * @returns
      * Full SELECT query that can be run against database
      */
     private buildFindQuery(params: FindQueryParams) {
-        const { query, filter } = params;
-        return this.concatenateQuery([query, { type: 'WHERE', query: '' }]);
+        const { query, filter, pagination: p } = params;
+        return this.concatenateQuery([
+            query,
+            { type: 'WHERE', query: filter },
+            { query: pagination.pageSize(p), type: 'LIMIT' },
+            { query: pagination.page(p), type: 'OFFSET' }
+        ]);
     }
 
+    /**
+     * Constructs a INSERT query from individual params
+     * @param params object
+     *
+     * @returns
+     * Full INSERT query that can be run against database
+     */
     private builAddQuery(params: AddQueryParams) {
-        const { data, columns, params: p, returning, table: t } = params;
+        const { data, columns, returning, table: t, conflict } = params;
 
         const table = t || this.table;
 
@@ -157,12 +215,20 @@ export default class PostgresQuery<P extends FindQueryParams | AddQueryParams> {
         const insert = pgHelpers.insert(data, columns, table);
         return this.concatenateQuery([
             insert,
-            { type: 'RETURNING', query: returning }
+            { type: 'RETURNING', query: returning },
+            { type: 'CONFLICT', query: conflict }
         ]);
     }
 
+    /**
+     * Constructs a UPDATE query from individual params
+     * @param params object
+     *
+     * @returns
+     * Full UPDATE query that can be run against database
+     */
     private builUpdateQuery(params: UpdateQueryParams) {
-        const { data, columns, params: p, table: t } = params;
+        const { data, columns, table: t, returning, filter, conflict } = params;
 
         const table = t || this.table;
 
@@ -172,11 +238,16 @@ export default class PostgresQuery<P extends FindQueryParams | AddQueryParams> {
 
         const update = pgHelpers.update(data, columns, table);
 
-        return this.concatenateQuery([update, { type: 'WHERE', query: '' }]);
+        return this.concatenateQuery([
+            update,
+            { type: 'WHERE', query: filter },
+            { type: 'RETURNING', query: returning },
+            { type: 'CONFLICT', query: conflict }
+        ]);
     }
 
     /**
-     *
+     * Determines which build method is used
      * @param params
      * @returns
      * Final query, tailored to each command
@@ -195,48 +266,53 @@ export default class PostgresQuery<P extends FindQueryParams | AddQueryParams> {
     }
 
     /**
-     *
+     * Triggers building and execution of query and returns one record
      * @param params
      *
-     * @returns
+     * @returns object
+     * One database record
      */
-    async one<R>(params: P): Promise<R> {
+    async one<R extends Record<string, unknown>>(params: P): Promise<R> {
         const query = this.buildQuery(params);
         const result = await this.execute(query, params.params);
 
         if (Array.isArray(result)) {
             if (result.length === 1) {
                 return result[0];
-            } else {
-                throw new Error('ddd');
             }
+            // if (result.length === 0) {
+            //     return null;
+            // }
+            throw new QueryError({
+                command: this.command,
+                message: '',
+                table: this.table,
+                query: query
+            });
         }
 
         return result;
     }
 
     /**
-     *
+     * Triggers building and execution of query and returns multiple records
      * @param params
-     * @returns
+     * @returns Array<object>
+     * List of database records
      */
-    async many<R>(params: P): Promise<R[]> {
+    async many<R extends Record<string, unknown>>(params: P): Promise<R[]> {
         const query = this.buildQuery(params);
         const result = await this.execute(query, params.params);
         return result;
     }
 
     /**
-     *
-     * @param params
+     * Triggers building and execution of query and return nothing
+     * @param params object
      */
     async none(params: P): Promise<void> {
         const query = this.buildQuery(params);
         await this.execute(query, params.params);
-    }
-
-    throwQueryError() {
-        return 1;
     }
 
     /**
@@ -254,20 +330,31 @@ export default class PostgresQuery<P extends FindQueryParams | AddQueryParams> {
             throw new Error('EMPTY QUERY');
         }
 
-        const fullQuery = pgFormat(query, params);
-
-        console.log(query);
-
-        return 1;
+        const fullQuery = pgFormat(query, params).trim();
 
         return this.db
             .any(fullQuery)
             .then((r) => {
-                console.log('r', r);
-
+                if (this.dbOptions.query?.onReturn) {
+                    this.dbOptions.query?.onReturn(r, fullQuery);
+                }
                 return r;
             })
             .catch((e) => {
+                if (this.dbOptions.query?.onError) {
+                    this.dbOptions.query?.onError(
+                        { message: e.message },
+                        fullQuery
+                    );
+                } else {
+                    throw new QueryError({
+                        command: this.command,
+                        message: e.message,
+                        query: fullQuery,
+                        table: this.table,
+                        cause: e
+                    });
+                }
                 console.log(e);
             });
     }

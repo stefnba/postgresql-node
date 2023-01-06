@@ -1,11 +1,14 @@
 import { IDatabase, QueryFile } from 'pg-promise';
+
 import { QueryErrorTypes, ConnectionErrorTypes } from './constants';
+import { ConnectionError } from './error';
 import PostgresQuery from './query';
+import { filterOperators } from './filter';
 import DatabaseRepository from './repository';
 
 export type Database = IDatabase<object>;
 
-export type DatabaseConnection = {
+export type DatabaseConnectionParams = {
     host?: string;
     port?: number;
     database: string;
@@ -13,45 +16,49 @@ export type DatabaseConnection = {
     password: string;
 };
 
-export type DatabaseStatus = {
-    status: 'CONNECTED' | 'FAILED' | 'INIT';
-    connection: DatabaseConnection;
-    error?: DatabaseConnectionError;
+export type DatabaseConnectionStatus = {
+    status: 'CONNECTED' | 'FAILED' | 'DISCONNECTED';
+    serverVersion?: string;
+    connection: DatabaseConnectionParams;
+    error?: ConnectionErrorPublic;
 };
+
+export type ConnectionEventSuccessParams = Omit<
+    DatabaseConnectionStatus,
+    'error'
+>;
+export type ConnectionEventFailParams = Omit<
+    DatabaseConnectionStatus,
+    'serverVersion'
+>;
 
 export type DatabaseOptions = {
     connect?: {
         testOnInit?: boolean;
-        logConnect?: boolean;
-        onSuccess?: (connection: DatabaseConnection) => void;
-        onFailed?: (
-            error: DatabaseConnectionError,
-            connection: DatabaseConnection
-        ) => void;
+        log?: boolean;
+        onSuccess?: (connection: ConnectionEventSuccessParams) => void;
+        onFailed?: (connection: ConnectionEventFailParams) => void;
     };
     query?: {
-        onError?: () => void;
-        onReturn?: () => void;
+        onError?: (error: { message: string }, query: string) => void;
+        onReturn?: (result: Array<object> | object, query: string) => void;
     };
-};
-
-export type DatabaseConnectionError = {
-    message: string;
-    code: string;
-    error: ConnectionErrorTypes;
-    hint?: string;
+    noWarnings?: boolean;
 };
 
 // Repositories
-export type RegisteredRepositories<
-    T extends Record<string, R>,
-    R extends DatabaseRepository
-> = {
-    [Properties in keyof T]: Omit<
-        T[Properties],
-        'queryInit' | 'filters' | 'queries' | 'columns' | 'table' | 'query'
-    >;
+
+export type RegisterRepositoriesParams = Record<
+    string,
+    typeof DatabaseRepository<never>
+>;
+export type RegisteredRepositories<R extends RegisterRepositoriesParams> = {
+    [Key in keyof R]: Repository<InstanceType<R[Key]>>;
 };
+export type Repository<R> = Omit<
+    R,
+    'table' | 'columns' | 'filters' | 'query' | 'queries'
+>;
 
 // Errors
 export type QueryErrorArgs = {
@@ -60,14 +67,33 @@ export type QueryErrorArgs = {
     message: string;
     hint?: string;
     query: string;
-    type: QueryErrorTypes;
     position?: number;
-    cause?: Error & { code?: string };
+    cause?: PostgresErrorObject;
 };
 
 export type ConnectionErrorArgs = {
-    connection: DatabaseConnection;
+    connection: DatabaseConnectionParams;
     message: string;
+    cause: PostgresErrorObject;
+};
+
+export type ConnectionErrorPublic = Pick<
+    ConnectionError,
+    'code' | 'message' | 'type'
+>;
+
+export type PostgresErrorObject = Error & {
+    code: string;
+    detail?: string;
+    hint?: string;
+    length?: number;
+    severity?: string;
+    schema?: string;
+    table?: string;
+    column?: string;
+    constraint?: string;
+    dataType?: string;
+    routine?: string;
 };
 
 // Query
@@ -97,7 +123,13 @@ export type QueryInit = {
 export type FindQueryParams = {
     query: QueryInput;
     params?: object;
-    filter?: object;
+    filter?: string;
+    pagination?: Pagination;
+};
+
+export type Pagination = {
+    page: number;
+    pageSize?: number;
 };
 
 export type AddQueryParams = {
@@ -106,6 +138,7 @@ export type AddQueryParams = {
     params?: object;
     returning?: QueryInput;
     table?: string;
+    conflict?: string;
 };
 
 export type UpdateQueryParams = AddQueryParams & {
@@ -113,8 +146,15 @@ export type UpdateQueryParams = AddQueryParams & {
 };
 
 // Filters
+export type FilterOperators = keyof typeof filterOperators;
 export type FilterOperatorParams = {
     column: string | number | symbol;
     value: unknown;
     alias: string;
 };
+
+export type FilterSet<M> = Record<
+    string,
+    | FilterOperators
+    | { column: keyof M; operator: FilterOperators; alias?: string }
+>;
