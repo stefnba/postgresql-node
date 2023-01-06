@@ -1,4 +1,4 @@
-import { IDatabase, QueryFile } from 'pg-promise';
+import { IDatabase, ITask, QueryFile } from 'pg-promise';
 
 import { ConnectionError } from './error';
 import PostgresQuery from './query';
@@ -98,7 +98,7 @@ export type PostgresErrorObject = Error & {
 // Query
 export type QueryInput = string | QueryFile;
 export type QueryCommands = 'SELECT' | 'UPDATE' | 'INSERT';
-export type QueryInitCommands = QueryCommands | 'RUN';
+export type QueryInitCommands = QueryCommands | 'RUN' | 'TRANSACTION';
 export type QueryClauses =
     | 'WHERE'
     | 'RETURNING'
@@ -119,7 +119,12 @@ export type QueryInit = {
     add: PostgresQuery<AddQueryParams>;
     update: PostgresQuery<UpdateQueryParams>;
     run: PostgresQuery<RunQueryParams>;
+    transaction: <R>(callback: BatchQueryCallback<R>) => void | Promise<void>;
 };
+
+export type TransactionClient = ITask<object>;
+
+export type BatchQueryCallback<R = any> = (t: QueryInit) => Promise<R>;
 
 export type FindQueryParams = {
     query: QueryInput;

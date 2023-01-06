@@ -1,6 +1,7 @@
 import { QueryFile } from 'pg-promise';
 import { QueryError } from './error';
 import pagination from './pagination';
+import PostgresBatchQuery from './batch';
 import {
     Database,
     DatabaseOptions,
@@ -9,22 +10,31 @@ import {
     UpdateQueryParams,
     QueryConcatenationParams,
     RunQueryParams,
-    QueryInitCommands
+    QueryInitCommands,
+    BatchQueryCallback,
+    TransactionClient
 } from './types';
 import { pgFormat, pgHelpers } from './utils';
 
-export default class PostgresQuery<P extends FindQueryParams | AddQueryParams> {
-    private db: Database;
+export default class PostgresQuery<
+    P extends
+        | FindQueryParams
+        | AddQueryParams
+        | UpdateQueryParams
+        | RunQueryParams
+> {
+    private db: Database | TransactionClient;
     private command: QueryInitCommands;
     private dbOptions: DatabaseOptions;
     table?: string;
 
     constructor(
-        client: Database,
+        client: Database | TransactionClient,
         options: DatabaseOptions,
         command: QueryInitCommands,
         table?: string
     ) {
+        console.log(client.constructor.name);
         this.db = client;
         this.command = command;
         this.table = table;
@@ -37,7 +47,11 @@ export default class PostgresQuery<P extends FindQueryParams | AddQueryParams> {
      * @param options
      * @returns
      */
-    static init(client: Database, options: DatabaseOptions, table?: string) {
+    static init(
+        client: Database | TransactionClient,
+        options: DatabaseOptions,
+        table?: string
+    ) {
         return {
             find: new PostgresQuery<FindQueryParams>(
                 client,
@@ -62,7 +76,15 @@ export default class PostgresQuery<P extends FindQueryParams | AddQueryParams> {
                 options,
                 'RUN',
                 table
-            )
+            ),
+            transaction: (callback: BatchQueryCallback) => {
+                const trx = new PostgresBatchQuery(client, options);
+                return trx.executeTransaction(callback);
+            },
+            batch: (callback: BatchQueryCallback) => {
+                const trx = new PostgresBatchQuery(client, options);
+                return trx.executeBatch(callback);
+            }
         };
     }
 
@@ -275,6 +297,9 @@ export default class PostgresQuery<P extends FindQueryParams | AddQueryParams> {
             return this.builUpdateQuery(params as UpdateQueryParams);
         }
         if (this.command === 'RUN') {
+            return this.buildRunQuery(params as RunQueryParams);
+        }
+        if (this.command === 'TRANSACTION') {
             return this.buildRunQuery(params as RunQueryParams);
         }
         return '';
