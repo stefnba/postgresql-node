@@ -20,15 +20,15 @@ class UserRepo extends DatabaseRepository<User> {
     queries = {
         get: this.readSql('testing/db/queryFiles/test.sql')
     };
-    columns = { add: this.conf.columns(['email', 'name', 'rank']) };
+    columns = { add: this.conf.columns(['name', 'name', 'rank']) };
     sqlDir = this.conf.sql.directory([__dirname]);
 
     add(data: object) {
         const cs = this.conf.columns(['id', 'name']);
         return this.query.add.one({
             data,
-            returning: '*',
-            columns: this.columns.add
+            returning: '*'
+            // columns: this.columns.add
         });
     }
 
@@ -107,10 +107,9 @@ const main = async () => {
         // }
     });
 
-    console.log(
-        111,
-        await client.query.run.many<User>('SELECT * FROM users', {})
-    );
+    const aaaaa = await client.query.run.many<User>('SELECT * FROM users', {});
+
+    console.log(aaaaa);
 
     const QueryRepositories = client.registerRepositories({
         user: UserRepo,
@@ -140,10 +139,11 @@ const main = async () => {
 
     // await query.add.one({
     //     data: { name: 'asdf' },
+    //     columns: ['d'],
     //     table: 'users',
     //     returning: '*'
     // });
-    // await query.update.one({ data: { name: 'asdf' }, table: 'users' });
+    await query.update.one({ data: { name: 'asdf' }, table: 'users' });
 };
 
 main();

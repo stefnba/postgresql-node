@@ -16,7 +16,8 @@ const db = new PostgresClient(connection, {
         onReturn(result, query) {
             // console.log(query);
         }
-    }
+    },
+    noWarnings: true
 });
 
 describe('FIND', () => {
