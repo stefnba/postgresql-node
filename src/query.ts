@@ -12,8 +12,11 @@ import {
     BatchQuery
 } from './types';
 import executeQuery from './execution';
-import { QueryError } from './error';
+import { QueryError, QueryResultError } from './error';
 
+/**
+ *
+ */
 export default class PostgresQuery {
     table?: string;
     private queryClient: string;
@@ -55,6 +58,14 @@ export default class PostgresQuery {
     }
 }
 
+/**
+ *
+ * @param client
+ * @param options
+ * @param command
+ * @param table
+ * @returns
+ */
 function query<
     P extends
         | FindQueryParams
@@ -67,6 +78,10 @@ function query<
     command: QueryExecutionCommands,
     table?: string
 ) {
+    /**
+     *
+     * @param params
+     */
     async function one<R>(params: P): Promise<R>;
     async function one<R>(query: string, params?: object): Promise<R>;
     async function one<R>(params: P | string): Promise<R> {
@@ -81,16 +96,21 @@ function query<
             if (result.length === 1) {
                 return result[0];
             }
-            throw new QueryError({
+            throw new QueryResultError({
                 table,
                 command,
-                message: 'QueryResultError',
+                type: 'OneRecordViolation',
+                message: 'Multiple records not allowed',
                 query: ''
             });
         }
         return result;
     }
 
+    /**
+     *
+     * @param params
+     */
     async function many<R>(params: P): Promise<R[]>;
     async function many<R>(query: string, params?: object): Promise<R[]>;
     async function many<R>(params: P | string): Promise<R[]> {
@@ -104,6 +124,10 @@ function query<
         return result;
     }
 
+    /**
+     *
+     * @param params
+     */
     async function none(params: P): Promise<void>;
     async function none(query: string, params?: object): Promise<void>;
     async function none(params: P | string): Promise<void> {

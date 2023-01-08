@@ -61,19 +61,29 @@ export type Repository<R> = Omit<
 
 // Errors
 export type QueryErrorArgs = {
-    table: string | undefined;
-    command: QueryExecutionCommands | undefined;
     message: string;
+    table?: string;
+    command?: QueryExecutionCommands;
     hint?: string;
-    query: string;
-    position?: number;
-    cause?: PostgresErrorObject;
+    query?: string;
+};
+
+export type QueryExecutionErrorArgs = QueryErrorArgs & {
+    cause: PostgresErrorObject;
 };
 
 export type ConnectionErrorArgs = {
     connection: DatabaseConnectionParams;
     message: string;
     cause: PostgresErrorObject;
+};
+
+export type QueryBuildErrorParams = QueryErrorArgs & {
+    type: 'TableMissing' | 'EmptyQuery';
+};
+
+export type QueryResultErrorParams = QueryErrorArgs & {
+    type: 'OneRecordViolation';
 };
 
 export type ConnectionErrorPublic = Pick<
@@ -93,12 +103,14 @@ export type PostgresErrorObject = Error & {
     constraint?: string;
     dataType?: string;
     routine?: string;
+    query?: string;
 };
 
 // Query
 export type QueryInput = string | QueryFile;
 export type QueryCommands = 'SELECT' | 'UPDATE' | 'INSERT';
 export type QueryExecutionCommands = QueryCommands | 'RUN';
+export type QueryInserUpdateCommands = 'UPDATE' | 'INSERT';
 export type QueryClauses =
     | 'WHERE'
     | 'RETURNING'
@@ -139,16 +151,16 @@ export type Pagination = {
     pageSize?: number;
 };
 
-export type AddQueryParams = {
+export type AddQueryParams<M = undefined> = {
     data: object | object[];
-    columns?: Array<string>;
+    columns?: ColumnSetParams<M>;
     params?: object;
     returning?: QueryInput;
     table?: string;
     conflict?: string;
 };
 
-export type UpdateQueryParams = AddQueryParams & {
+export type UpdateQueryParams<M = undefined> = AddQueryParams<M> & {
     filter?: object;
 };
 
@@ -165,3 +177,11 @@ export type FilterSet<M> = Record<
     | FilterOperators
     | { column: keyof M; operator: FilterOperators; alias?: string }
 >;
+
+export type ColumnSetParams<M = undefined> = M extends undefined
+    ? Array<string | { name: string; optional: boolean }>
+    : Array<
+          | { name: keyof M; optional: boolean }
+          | keyof M
+          | `${string & keyof M}?`
+      >;

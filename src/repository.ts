@@ -2,7 +2,7 @@ import { QueryFile } from 'pg-promise';
 import path from 'path';
 
 import { filterOperators } from './filter';
-import type { FilterSet } from './types';
+import type { ColumnSetParams, FilterSet } from './types';
 import PostgresQuery from './query';
 
 const joinPath = path.join;
@@ -25,7 +25,7 @@ export default class DatabaseRepository<M> {
      * Define queries that can be used throughout the Repository, either through this.readQueryFile() or directly as a query
      */
     protected queries?: Record<string, string | QueryFile>;
-    protected columns?: Record<string, Array<string | keyof M>>;
+    // protected columns?: Record<string, Array<string | keyof M>>;
 
     protected conf = {
         columns: this.defineColumns,
@@ -55,8 +55,8 @@ export default class DatabaseRepository<M> {
      * @param columns
      * @returns
      */
-    private defineColumns(columns: Array<keyof M>) {
-        return columns;
+    private defineColumns(columns: ColumnSetParams<M>): ColumnSetParams {
+        return columns as ColumnSetParams;
     }
 
     /**

@@ -118,12 +118,3 @@ export type FilterSetsParams<M> = Record<
     | { column: keyof M; operator: FilterOperators; alias?: string }
     | FilterOperators
 >;
-
-// ColumnSets
-export type ColumnSet<M = undefined> = M extends undefined
-    ? Array<string | { name: string; optional: boolean }>
-    : Array<
-          | { name: keyof M; optional: boolean }
-          | keyof M
-          | `${string & keyof M}?`
-      >;

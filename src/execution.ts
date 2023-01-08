@@ -8,10 +8,20 @@ import {
     UpdateQueryParams,
     RunQueryParams
 } from './types';
-import { pgHelpers, concatenateQuery, pgFormat } from './utils';
+import { concatenateQuery, pgFormat, buildUpdateInsertQuery } from './utils';
 import pagination from './pagination';
-import { QueryError } from './error';
+import { QueryBuildError, QueryExecutionError } from './error';
 
+/**
+ * Executes query against database
+ * @param client
+ * @param options
+ * @param command
+ * @param params
+ * @param table
+ * @returns
+ * Results from database
+ */
 const executeQuery = async (
     client: Database | TransactionClient,
     options: DatabaseOptions,
@@ -28,6 +38,7 @@ const executeQuery = async (
 ) => {
     let query = '';
 
+    // run can have query as string
     if (command === 'RUN') {
         if (typeof params === 'string') {
             query = params;
@@ -53,13 +64,12 @@ const executeQuery = async (
             conflict
         } = params as UpdateQueryParams;
 
-        const t = t_ || table;
-
-        if (!t) {
-            throw new Error('table');
-        }
-
-        const update = pgHelpers.update(data, columns, table);
+        const update = buildUpdateInsertQuery(
+            'UPDATE',
+            data,
+            columns,
+            t_ || table
+        );
 
         query = concatenateQuery([
             update,
@@ -77,13 +87,12 @@ const executeQuery = async (
             conflict
         } = params as AddQueryParams;
 
-        const t = t_ || table;
-
-        if (!t) {
-            throw new Error('table');
-        }
-
-        const insert = pgHelpers.insert(data, columns, table);
+        const insert = buildUpdateInsertQuery(
+            'INSERT',
+            data,
+            columns,
+            t_ || table
+        );
         query = concatenateQuery([
             insert,
             { type: 'RETURNING', query: returning },
@@ -92,7 +101,12 @@ const executeQuery = async (
     }
 
     if (!query || query.trim() === '') {
-        throw Error('');
+        throw new QueryBuildError({
+            message: 'Query cannot be empty',
+            type: 'EmptyQuery',
+            query,
+            command
+        });
     }
 
     if (typeof params !== 'string' && params.params) {
@@ -111,7 +125,7 @@ const executeQuery = async (
             if (options.query?.onError) {
                 options.query?.onError({ message: err.message }, query);
             } else {
-                throw new QueryError({
+                throw new QueryExecutionError({
                     command: command,
                     message: err.message,
                     query,

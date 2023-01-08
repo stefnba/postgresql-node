@@ -1,75 +1,104 @@
-import { QueryErrorTypes } from './constants';
 import type {
     QueryErrorArgs,
-    QueryExecutionCommands,
+    QueryExecutionErrorArgs,
     ConnectionErrorArgs,
     DatabaseConnectionParams,
     PostgresErrorObject,
-    ConnectionErrorPublic
+    ConnectionErrorPublic,
+    QueryBuildErrorParams,
+    QueryResultErrorParams,
+    QueryExecutionCommands
 } from './types';
 
 /**
  * Query Error that extends Error with additional properties
  */
 export class QueryError extends Error {
-    type?: QueryErrorTypes;
-    command?: QueryExecutionCommands;
-    query?: string;
     table?: string;
-    schema?: string;
-    column?: string;
-    hint?: string;
-    cause?: Error;
-    position?: number;
-    code?: string;
+    query?: string;
+    command?: QueryExecutionCommands;
 
-    constructor({
-        command,
-        message,
-        query,
-        table,
-        cause,
-        hint,
-        position
-    }: QueryErrorArgs) {
+    constructor(params: QueryErrorArgs) {
+        const { message, table, query, command } = params;
         super(message);
-        this.name = 'QueryError';
 
         this.message = message;
-        this.command = command;
         this.table = table;
         this.query = query;
-        this.hint = hint;
-        this.position = position;
-        this.cause = cause;
+        this.command = command;
 
-        if (cause?.code) {
-            const { code } = cause;
-            this.code = code;
-
-            if (code === '23502') this.notNullConstraint();
-            // syntax error
-        }
-
-        Object.setPrototypeOf(this, new.target.prototype);
+        // Object.setPrototypeOf(this, new.target.prototype);
         // Error.captureStackTrace(this, this.constructor);
     }
+}
 
-    includeTypeInMessage() {
-        this.message = `[${this.type}] ${this.message}`;
+export class QueryResultError extends QueryError {
+    type?: QueryResultErrorParams['type'];
+
+    constructor(params: QueryResultErrorParams) {
+        const { message, type, command } = params;
+        super({ message, command });
+
+        this.type = type;
+    }
+}
+
+export class QueryBuildError extends QueryError {
+    type?: QueryBuildErrorParams['type'];
+
+    constructor(params: QueryBuildErrorParams) {
+        const { message, type, command, query } = params;
+        super({ message, command });
+
+        this.type = type;
+        this.query = query;
+    }
+}
+
+export class QueryExecutionError extends QueryError {
+    code: string;
+    type?:
+        | 'NullConstraintViolation'
+        | 'UniqueConstraintViolation'
+        | 'MissingColumn';
+    column?: string;
+    detail?: string;
+    schema?: string;
+    constraint?: string;
+
+    constructor(params: QueryExecutionErrorArgs) {
+        const { message, cause, command, query } = params;
+        super({ message, command });
+
+        this.code = cause.code;
+
+        console.log(cause);
+
+        this.column = cause.column;
+        this.detail = cause.detail;
+        this.schema = cause.schema;
+        this.table = cause.table;
+        this.constraint = cause.constraint;
+        this.query = cause.query || query;
+
+        if (cause.code) {
+            if (this.code === '23502') this.notNullConstraint();
+            if (this.code === '23505') this.uniqueConstraint();
+            if (this.code === '42703') this.missingColumn();
+        }
     }
 
     /**
      * Violates not-null constraint of column
      */
     notNullConstraint() {
-        this.code = '23502';
-        this.type = QueryErrorTypes.NotNullViolation;
-        this.includeTypeInMessage();
-
-        const cause = this.cause as Error & { schema: string; column: string };
-        this.schema = cause.schema;
-        this.column = cause.column;
+        this.type = 'NullConstraintViolation';
+    }
+    uniqueConstraint() {
+        this.type = 'UniqueConstraintViolation';
+    }
+    missingColumn() {
+        this.type = 'MissingColumn';
     }
 }
 
