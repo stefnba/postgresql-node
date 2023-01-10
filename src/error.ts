@@ -10,6 +10,8 @@ import type {
     QueryExecutionCommands
 } from './types';
 
+import { pgErrorCodes } from './constants';
+
 /**
  * Query Error that extends Error with additional properties
  */
@@ -47,8 +49,8 @@ export class QueryBuildError extends QueryError {
     type?: QueryBuildErrorParams['type'];
 
     constructor(params: QueryBuildErrorParams) {
-        const { message, type, command, query } = params;
-        super({ message, command });
+        const { message, type, command, query, table } = params;
+        super({ message, command, table });
 
         this.type = type;
         this.query = query;
@@ -57,48 +59,33 @@ export class QueryBuildError extends QueryError {
 
 export class QueryExecutionError extends QueryError {
     code: string;
-    type?:
-        | 'NullConstraintViolation'
-        | 'UniqueConstraintViolation'
-        | 'MissingColumn';
+    type?: string;
     column?: string;
     detail?: string;
     schema?: string;
     constraint?: string;
+    private cause: PostgresErrorObject;
 
     constructor(params: QueryExecutionErrorArgs) {
-        const { message, cause, command, query } = params;
+        const { message, cause, command, query, table } = params;
         super({ message, command });
 
-        this.code = cause.code;
-
-        console.log(cause);
+        const code = cause.code;
+        this.code = code;
 
         this.column = cause.column;
         this.detail = cause.detail;
         this.schema = cause.schema;
-        this.table = cause.table;
+        this.table = cause.table || table;
         this.constraint = cause.constraint;
         this.query = cause.query || query;
+        this.cause = cause;
 
-        if (cause.code) {
-            if (this.code === '23502') this.notNullConstraint();
-            if (this.code === '23505') this.uniqueConstraint();
-            if (this.code === '42703') this.missingColumn();
+        if (code && code in pgErrorCodes) {
+            this.type =
+                pgErrorCodes[code as keyof typeof pgErrorCodes].toUpperCase();
         }
-    }
-
-    /**
-     * Violates not-null constraint of column
-     */
-    notNullConstraint() {
-        this.type = 'NullConstraintViolation';
-    }
-    uniqueConstraint() {
-        this.type = 'UniqueConstraintViolation';
-    }
-    missingColumn() {
-        this.type = 'MissingColumn';
+        // console.log(this);
     }
 }
 

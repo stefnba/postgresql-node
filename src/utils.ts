@@ -168,8 +168,8 @@ export const buildUpdateInsertQuery = (
 ) => {
     if (!table) {
         throw new QueryBuildError({
-            message: 'A table name is required for UPDATE command',
-            type: 'TableMissing',
+            message: 'A table name is required',
+            type: 'TABLE_NAME_MISSING',
             command
         });
     }
@@ -178,13 +178,20 @@ export const buildUpdateInsertQuery = (
 
     try {
         return pgHelpers[_command](data, columns, table);
-    } catch (err) {
-        console.log(err);
-        throw new QueryBuildError({
-            message: 'A table name is required for UPDATE command',
-            type: 'TableMissing',
-            command
-        });
+    } catch (err: any) {
+        if (err.message.match(/Property '([a-zA-Z]+)' doesn't exist\./g)) {
+            throw new QueryBuildError({
+                message: 'A table name is required for UPDATE command',
+                type: 'DATA_PROPERTY_MISSING',
+                table,
+                column: 'rank',
+                command
+            });
+        }
+
+        console.log();
+
+        console.log('dddd', err);
     }
 };
 

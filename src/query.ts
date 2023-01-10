@@ -99,7 +99,7 @@ function query<
             throw new QueryResultError({
                 table,
                 command,
-                type: 'OneRecordViolation',
+                type: 'ONE_RECORD_VIOLATION',
                 message: 'Multiple records not allowed',
                 query: ''
             });

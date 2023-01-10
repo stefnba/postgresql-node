@@ -79,11 +79,12 @@ export type ConnectionErrorArgs = {
 };
 
 export type QueryBuildErrorParams = QueryErrorArgs & {
-    type: 'TableMissing' | 'EmptyQuery';
+    type: 'TABLE_NAME_MISSING' | 'EMPTY_QUERY' | 'DATA_PROPERTY_MISSING';
+    column?: string;
 };
 
 export type QueryResultErrorParams = QueryErrorArgs & {
-    type: 'OneRecordViolation';
+    type: 'ONE_RECORD_VIOLATION';
 };
 
 export type ConnectionErrorPublic = Pick<

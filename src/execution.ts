@@ -103,7 +103,7 @@ const executeQuery = async (
     if (!query || query.trim() === '') {
         throw new QueryBuildError({
             message: 'Query cannot be empty',
-            type: 'EmptyQuery',
+            type: 'EMPTY_QUERY',
             query,
             command
         });
@@ -129,7 +129,7 @@ const executeQuery = async (
                     command: command,
                     message: err.message,
                     query,
-                    table: table,
+                    table,
                     cause: err
                 });
             }

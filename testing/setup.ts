@@ -17,3 +17,7 @@ export type UserModel = {
     email: string;
     rank: number;
 };
+
+export function randomInt(max: number) {
+    return Math.floor(Math.random() * max);
+}
