@@ -111,7 +111,7 @@ const main = async () => {
 
     console.log(aaaaa);
 
-    const QueryRepositories = client.registerRepositories({
+    const QueryRepositories = client.addRepositories({
         user: UserRepo,
         product: ProductRepo
     });

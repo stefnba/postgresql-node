@@ -7,13 +7,36 @@ import PostgresQuery from './query';
 
 const joinPath = path.join;
 
+/**
+ * A DatabaseRepository organizes and simplifies interactions with one table in the database.
+ * All queries for this table can be added as methods and used throughout the application without
+ * the need to re-specify relevant parameters, such as columns, filters, types, etc.
+ *
+ * All repositories must be registered with the database client through the client.addRepositories() method.
+ *
+ * @method asdf()
+ * adf()
+ * @property conf
+ * asdf
+ *
+ * @example
+ * const client = new PostgresClient(connection);
+ * const repos = client.addRepositories({
+ *      user: UserRepo
+ * })
+ *
+ * class UserRepo extends DatabaseRepository {
+ *      // specify table name for this repository
+ *      table = 'users';
+ * }
+ */
 export default class DatabaseRepository<M> {
     /**
      * Query client that can be used in methods to run queries against database connection
      */
     query!: PostgresQuery;
     /**
-     * Name of table in database
+     * Name of table in database. If specified, UPDATE and ADD queries don't require the param "table".
      * */
     table!: string;
     /**
@@ -27,13 +50,14 @@ export default class DatabaseRepository<M> {
     protected queries?: Record<string, string | QueryFile>;
     // protected columns?: Record<string, Array<string | keyof M>>;
 
+    /**
+     * Configuration property that combined various methods to set up a DatabaseRepository
+     */
     protected conf = {
-        columns: this.defineColumns,
-        sql: {
-            file: this.readSql,
-            directory: this.setSqlDir
-        },
-        filter: this.defineFilters
+        columnSet: this.defineColumnSet,
+        filterSet: this.defineFilterSet,
+        sqlFile: this.readSql,
+        sqlDir: this.setSqlDir
     };
 
     /**
@@ -46,16 +70,24 @@ export default class DatabaseRepository<M> {
         return dir;
     }
 
-    private defineFilters(filterSet: FilterSet<M>) {
+    /**
+     * Creates new filterSet that defines the filters that are allowed for a SELECT or UPDATE query
+     * @param filterSet object
+     *
+     * @returns
+     * Configured filterSet
+     */
+    private defineFilterSet(filterSet: FilterSet<M>) {
         return filterSet;
     }
 
     /**
-     *
+     * Creates new columnSet that defines the columns that are allowed and/or required for a UPDATE or INSERT query
      * @param columns
      * @returns
+     * Configured columnSet
      */
-    private defineColumns(columns: ColumnSetParams<M>): ColumnSetParams {
+    private defineColumnSet(columns: ColumnSetParams<M>): ColumnSetParams {
         return columns as ColumnSetParams;
     }
 
@@ -68,7 +100,7 @@ export default class DatabaseRepository<M> {
      * Query as string with conditions concetenated with AND based on provided filter object and allowed filters by FilterSet.
      * WHERE clause never included
      */
-    protected filter(filters: object, filterSet: FilterSet<M>): string {
+    protected applyFilter(filters: object, filterSet: FilterSet<M>): string {
         const appliedFilters = Object.entries(filters).map(
             ([filterKey, filterValue]) => {
                 if (filterKey in filterSet) {
@@ -118,7 +150,7 @@ export default class DatabaseRepository<M> {
     }
 
     /**
-     * Reads a prepared SQL QueryFile
+     * Reads a prepared SQL QueryFile.
      * @param path string
      * Location to .sql file
      * @returns

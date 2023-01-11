@@ -47,11 +47,11 @@ export type DatabaseOptions = {
 
 // Repositories
 
-export type RegisterRepositoriesParams = Record<
+export type addRepositoriesParams = Record<
     string,
     typeof DatabaseRepository<never>
 >;
-export type RegisteredRepositories<R extends RegisterRepositoriesParams> = {
+export type RegisteredRepositories<R extends addRepositoriesParams> = {
     [Key in keyof R]: Repository<InstanceType<R[Key]>>;
 };
 export type Repository<R> = Omit<

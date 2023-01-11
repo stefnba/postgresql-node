@@ -9,7 +9,7 @@ import type {
     RegisteredRepositories,
     Database,
     DatabaseOptions,
-    RegisterRepositoriesParams
+    addRepositoriesParams
 } from './types';
 import { ConnectionError } from './error';
 
@@ -159,7 +159,7 @@ export default class PostgresClient {
      * @returns
      * Instantiated respositories
      */
-    registerRepositories<T extends RegisterRepositoriesParams>(
+    addRepositories<T extends addRepositoriesParams>(
         databaseRespos: T
     ): RegisteredRepositories<T> {
         return Object.entries(databaseRespos).reduce((acc, [key, Repo]) => {
@@ -167,6 +167,8 @@ export default class PostgresClient {
 
             // attach query
             repo.query = this.queryInit(repo.table);
+
+            console.log(repo);
 
             return {
                 ...acc,
