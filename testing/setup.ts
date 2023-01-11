@@ -18,6 +18,6 @@ export type UserModel = {
     rank: number;
 };
 
-export function randomInt(max: number) {
+export function randomInt(max = 1000000) {
     return Math.floor(Math.random() * max);
 }

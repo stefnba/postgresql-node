@@ -2,7 +2,7 @@ import chai from 'chai';
 import chaiAsPromised from 'chai-as-promised';
 import mocha from 'mocha';
 
-import { connection, UserModel } from './setup';
+import { connection, UserModel, randomInt } from './setup';
 import PostgresClient from '../src';
 
 const { it, describe } = mocha;
@@ -29,11 +29,51 @@ describe('RUN', () => {
         expect(r).to.have.key('now');
     });
     it('SHOULD RUN SELECT query with params to retrieve one user', async () => {
-        const r = await db.query.run.one<UserModel>({
-            query: 'SELECT * from users WHERE id = $<id>',
-            params: { id: 1 }
-        });
+        const r = await db.query.run.one<UserModel>(
+            'SELECT * from users WHERE id = $<id>',
+            { id: 1 }
+        );
 
         expect(r).to.have.keys(['id', 'name', 'email', 'rank']);
+    });
+    it('SHOULD INSERT ONE USER with run query', async () => {
+        const rank = randomInt();
+        const r = await db.query.run.one<UserModel>(
+            "INSERT INTO users(name, email, rank) VALUES ('RUN-Test', $<email>, $<rank>) RETURNING *",
+            {
+                email: `${rank}@mail.com`,
+                rank
+            }
+        );
+
+        expect(r).to.have.keys(['id', 'name', 'email', 'rank']);
+    });
+    it('SHOULD SELECT all users with run query and no params', async () => {
+        const r = await db.query.run.many<UserModel>('SELECT * from users');
+
+        expect(r).to.be.an('array');
+        expect(r[0]).to.have.keys(['id', 'name', 'email', 'rank']);
+    });
+    it('SHOULD LOG query and results via onReturn function', async () => {
+        let query = '';
+        let result: object[] = [];
+
+        const dbNew = new PostgresClient(connection, {
+            noWarnings: true,
+            connect: { testOnInit: false, log: false },
+            query: {
+                onReturn(_result, queryLog) {
+                    query = queryLog;
+                    result = _result as object[];
+                }
+            }
+        });
+
+        await dbNew.query.run.many('SELECT * FROM users');
+
+        expect(query).to.be.a('string');
+        expect(query).to.equal('SELECT * FROM users');
+        expect(result).to.be.an('array');
+        expect(result[0]).to.have.keys(['id', 'name', 'email', 'rank']);
     });
 });

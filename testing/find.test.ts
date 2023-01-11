@@ -42,4 +42,22 @@ describe('FIND', () => {
             expect(r[0]).to.have.keys(['id', 'name', 'email', 'rank']);
         });
     });
+    describe('ONE', () => {
+        it('SHOULD LIST one user record', async () => {
+            const r = await db.query.find.one<UserModel>({
+                query: 'SELECT * FROM Users WHERE id = 1'
+            });
+
+            expect(r).to.have.keys(['id', 'name', 'email', 'rank']);
+        });
+        it('SHOULD LIST one user record with param id provided', async () => {
+            const r = await db.query.find.one<UserModel>({
+                query: 'SELECT * FROM Users WHERE id = $<id>',
+                params: { id: 1 }
+            });
+
+            expect(r).to.have.keys(['id', 'name', 'email', 'rank']);
+            expect(r.id).to.equal(1);
+        });
+    });
 });

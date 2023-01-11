@@ -34,14 +34,15 @@ const executeQuery = async (
               | UpdateQueryParams
               | RunQueryParams
           ),
-    table?: string
+    table?: string,
+    addParams?: object
 ) => {
     let query = '';
 
-    // run can have query as string
+    // run can have query as string, no object needed
     if (command === 'RUN') {
         if (typeof params === 'string') {
-            query = params;
+            query = pgFormat(params, addParams);
         }
     }
 
@@ -60,8 +61,7 @@ const executeQuery = async (
             columns,
             table: t_,
             returning,
-            filter,
-            conflict
+            filter
         } = params as UpdateQueryParams;
 
         const update = buildUpdateInsertQuery(
@@ -74,9 +74,9 @@ const executeQuery = async (
         query = concatenateQuery([
             update,
             { type: 'WHERE', query: filter },
-            { type: 'RETURNING', query: returning },
-            { type: 'CONFLICT', query: conflict }
+            { type: 'RETURNING', query: returning }
         ]);
+        console.log(query);
     }
     if (command === 'INSERT' && typeof params !== 'string') {
         const {
@@ -95,8 +95,8 @@ const executeQuery = async (
         );
         query = concatenateQuery([
             insert,
-            { type: 'RETURNING', query: returning },
-            { type: 'CONFLICT', query: conflict }
+            { type: 'CONFLICT', query: conflict },
+            { type: 'RETURNING', query: returning }
         ]);
     }
 

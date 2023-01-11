@@ -101,7 +101,7 @@ export function concatenateQuery(parts: QueryConcatenationParams): string {
             return;
         }
         if (type === 'CONFLICT') {
-            const clause = 'CONFLICT ON';
+            const clause = 'ON CONFLICT';
             if (
                 queryIncludesClause(fullQuery, clause) ||
                 queryIncludesClause(query, clause)

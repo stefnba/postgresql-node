@@ -21,10 +21,10 @@ export default class PostgresQuery {
     table?: string;
     private queryClient: string;
 
-    find: ReturnType<typeof query<FindQueryParams>>;
-    update: ReturnType<typeof query<UpdateQueryParams>>;
-    add: ReturnType<typeof query<AddQueryParams>>;
-    run: ReturnType<typeof query<RunQueryParams>>;
+    find: ReturnType<typeof queryReturn<FindQueryParams>>;
+    update: ReturnType<typeof queryReturn<UpdateQueryParams>>;
+    add: ReturnType<typeof queryReturn<AddQueryParams>>;
+    run: ReturnType<typeof queryReturn<RunQueryParams>>;
 
     transaction: BatchQuery;
     batch: BatchQuery;
@@ -37,15 +37,25 @@ export default class PostgresQuery {
         this.table = table;
         this.queryClient = client.constructor.name;
 
-        this.find = query<FindQueryParams>(client, options, 'SELECT', table);
-        this.update = query<UpdateQueryParams>(
+        this.find = queryReturn<FindQueryParams>(
+            client,
+            options,
+            'SELECT',
+            table
+        );
+        this.update = queryReturn<UpdateQueryParams>(
             client,
             options,
             'UPDATE',
             table
         );
-        this.add = query<AddQueryParams>(client, options, 'INSERT', table);
-        this.run = query<RunQueryParams>(client, options, 'RUN', table);
+        this.add = queryReturn<AddQueryParams>(
+            client,
+            options,
+            'INSERT',
+            table
+        );
+        this.run = queryReturn<RunQueryParams>(client, options, 'RUN', table);
 
         this.transaction = (callback: BatchQueryCallback) => {
             const trx = new PostgresBatchQuery(client, options);
@@ -66,7 +76,7 @@ export default class PostgresQuery {
  * @param table
  * @returns
  */
-function query<
+function queryReturn<
     P extends
         | FindQueryParams
         | RunQueryParams
@@ -84,13 +94,14 @@ function query<
      */
     async function one<R>(params: P): Promise<R>;
     async function one<R>(query: string, params?: object): Promise<R>;
-    async function one<R>(params: P | string): Promise<R> {
+    async function one<R>(params: P | string, addParams?: object): Promise<R> {
         const result = await executeQuery(
             client,
             options,
             command,
             params,
-            table
+            table,
+            addParams
         );
         if (Array.isArray(result)) {
             if (result.length === 1) {
@@ -113,13 +124,17 @@ function query<
      */
     async function many<R>(params: P): Promise<R[]>;
     async function many<R>(query: string, params?: object): Promise<R[]>;
-    async function many<R>(params: P | string): Promise<R[]> {
+    async function many<R>(
+        params: P | string,
+        addParams?: object
+    ): Promise<R[]> {
         const result = await executeQuery(
             client,
             options,
             command,
             params,
-            table
+            table,
+            addParams
         );
         return result;
     }
@@ -130,8 +145,19 @@ function query<
      */
     async function none(params: P): Promise<void>;
     async function none(query: string, params?: object): Promise<void>;
-    async function none(params: P | string): Promise<void> {
-        await executeQuery(client, options, command, params, table);
+    async function none(
+        params: P | string,
+        additionalParams?: object
+    ): Promise<void> {
+        console.log(additionalParams);
+        await executeQuery(
+            client,
+            options,
+            command,
+            params,
+            table,
+            additionalParams
+        );
     }
 
     return {

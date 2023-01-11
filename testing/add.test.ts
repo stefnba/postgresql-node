@@ -21,7 +21,7 @@ const db = new PostgresClient(connection, {
     noWarnings: true
 });
 
-describe.only('ADD', () => {
+describe('ADD', () => {
     it('SHOULD ADD one user record without columns and return nothing', async () => {
         const rank = randomInt(1000000);
         await db.query.add.none({

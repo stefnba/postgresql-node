@@ -161,9 +161,11 @@ export type AddQueryParams<M = undefined> = {
     conflict?: string;
 };
 
-export type UpdateQueryParams<M = undefined> = AddQueryParams<M> & {
-    filter?: object;
-};
+export type UpdateQueryParams<M = undefined> = Omit<
+    AddQueryParams<M>,
+    'conflict'
+> &
+    Pick<FindQueryParams, 'filter'>;
 
 // Filters
 export type FilterOperators = keyof typeof filterOperators;
