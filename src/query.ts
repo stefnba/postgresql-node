@@ -13,6 +13,7 @@ import {
 } from './types';
 import executeQuery from './execution';
 import { QueryError, QueryResultError } from './error';
+import { QueryFile } from 'pg-promise';
 
 /**
  *
@@ -93,8 +94,14 @@ function queryReturn<
      * @param params
      */
     async function one<R>(params: P): Promise<R>;
-    async function one<R>(query: string, params?: object): Promise<R>;
-    async function one<R>(params: P | string, addParams?: object): Promise<R> {
+    async function one<R>(
+        query: string | QueryFile,
+        params?: object
+    ): Promise<R>;
+    async function one<R>(
+        params: P | string | QueryFile,
+        addParams?: object
+    ): Promise<R> {
         const result = await executeQuery(
             client,
             options,

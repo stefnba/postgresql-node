@@ -1,11 +1,7 @@
-import { QueryFile } from 'pg-promise';
-import path from 'path';
-
-import { filterOperators } from './filter';
+import { applyFilter } from './filter';
 import type { ColumnSetParams, FilterSet } from './types';
 import PostgresQuery from './query';
-
-const joinPath = path.join;
+import { sqlFile } from './queryFile';
 
 /**
  * A DatabaseRepository organizes and simplifies interactions with one table in the database.
@@ -14,7 +10,7 @@ const joinPath = path.join;
  *
  * All repositories must be registered with the database client through the client.addRepositories() method.
  *
- * @method asdf()
+ * @method filterSet
  * adf()
  * @property conf
  * asdf
@@ -40,35 +36,10 @@ export default class DatabaseRepository<M> {
      * */
     table!: string;
     /**
-     * Path to folder that contains .sql files for queries
+     * Path to base directory that contains .sql files for queries
      * If not specified, root directory is base path
      */
-    protected sqlDir?: string;
-    /**
-     * Define queries that can be used throughout the Repository, either through this.readQueryFile() or directly as a query
-     */
-    protected queries?: Record<string, string | QueryFile>;
-    // protected columns?: Record<string, Array<string | keyof M>>;
-
-    /**
-     * Configuration property that combined various methods to set up a DatabaseRepository
-     */
-    protected conf = {
-        columnSet: this.defineColumnSet,
-        filterSet: this.defineFilterSet,
-        sqlFile: this.readSql,
-        sqlDir: this.setSqlDir
-    };
-
-    /**
-     * Sets base for for .sql query files that are used in this Repo
-     * @param path string | string[]
-     */
-    private setSqlDir(path: string | Array<string>) {
-        const dir = Array.isArray(path) ? joinPath(...path) : path;
-        this.sqlDir = dir;
-        return dir;
-    }
+    protected sqlFilesDir?: string | string[];
 
     /**
      * Creates new filterSet that defines the filters that are allowed for a SELECT or UPDATE query
@@ -77,7 +48,7 @@ export default class DatabaseRepository<M> {
      * @returns
      * Configured filterSet
      */
-    private defineFilterSet(filterSet: FilterSet<M>) {
+    protected filterSet(filterSet: FilterSet<M>) {
         return filterSet;
     }
 
@@ -87,7 +58,7 @@ export default class DatabaseRepository<M> {
      * @returns
      * Configured columnSet
      */
-    private defineColumnSet(columns: ColumnSetParams<M>): ColumnSetParams {
+    protected columnSet(columns: ColumnSetParams<M>) {
         return columns as ColumnSetParams;
     }
 
@@ -101,52 +72,7 @@ export default class DatabaseRepository<M> {
      * WHERE clause never included
      */
     protected applyFilter(filters: object, filterSet: FilterSet<M>): string {
-        const appliedFilters = Object.entries(filters).map(
-            ([filterKey, filterValue]) => {
-                if (filterKey in filterSet) {
-                    // filters with value undefined are ignored
-                    if (filterValue === undefined) {
-                        return;
-                    }
-
-                    const filterConfig = filterSet[filterKey];
-                    if (filterConfig) {
-                        let sql: string;
-
-                        // shorthand version, i.e. filterKey is key ob object, operator is value
-                        if (typeof filterConfig === 'string') {
-                            sql = filterOperators[filterConfig]({
-                                alias: this.table,
-                                column: filterKey,
-                                value: filterValue
-                            });
-                        } else {
-                            sql = filterOperators[filterConfig.operator]({
-                                alias: filterConfig.alias || this.table,
-                                column: filterConfig.column,
-                                value: filterValue
-                            });
-                        }
-
-                        return {
-                            filter: filterKey,
-                            value: filterValue,
-                            operator:
-                                typeof filterConfig === 'string'
-                                    ? filterConfig
-                                    : filterConfig.operator,
-                            sql
-                        };
-                    }
-                }
-                return;
-            }
-        );
-        if (appliedFilters.length === 0) return '';
-        return appliedFilters
-            .filter((f) => f !== undefined)
-            .map((f) => f?.sql)
-            .join(' AND ');
+        return applyFilter(filters, filterSet as FilterSet, this.table);
     }
 
     /**
@@ -156,17 +82,7 @@ export default class DatabaseRepository<M> {
      * @returns
      * QueryFile Object
      */
-    protected readSql(path: string): QueryFile {
-        const qf = new QueryFile(joinPath(this.sqlDir || process.cwd(), path), {
-            minify: true,
-            debug: true // todo env conditon
-        });
-
-        if (qf.error) {
-            // todo
-            console.error(qf.error);
-        }
-
-        return qf;
+    protected sqlFile(path: string | string[], directory?: string | string[]) {
+        return sqlFile(path, directory || this.sqlFilesDir);
     }
 }

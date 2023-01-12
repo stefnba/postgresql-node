@@ -7,6 +7,7 @@ import type {
     ColumnSetParams
 } from './types';
 import { QueryBuildError } from './error';
+import { ColumnSet } from './column';
 
 /**
  * Helpers for query building, e.g. insert, update
@@ -177,7 +178,11 @@ export const buildUpdateInsertQuery = (
     const _command = command === 'INSERT' ? 'insert' : 'update';
 
     try {
-        return pgHelpers[_command](data, columns, table);
+        return pgHelpers[_command](
+            data,
+            columns ? new ColumnSet(columns) : null,
+            table
+        );
     } catch (err: any) {
         if (err.message.match(/Property '([a-zA-Z]+)' doesn't exist\./g)) {
             throw new QueryBuildError({
@@ -194,35 +199,3 @@ export const buildUpdateInsertQuery = (
         console.log('dddd', err);
     }
 };
-
-const { ColumnSet: PgColumnSet } = pgHelpers;
-
-export class ColumnSet<M = undefined> extends PgColumnSet<M> {
-    constructor(columns: ColumnSetParams<M>, table?: string) {
-        const _columns = columns.map((col) => {
-            if (typeof col === 'string') {
-                // make optional if ? is provided in column name
-                if (col.endsWith('?')) {
-                    return {
-                        name: col.replace('?', ''),
-                        skip: (a: any) => !a.exists
-                    };
-                }
-                return col;
-            }
-            if (typeof col === 'object' && 'optional' in col) {
-                const { optional, ...rest } = col as { optional: boolean };
-                if (optional) {
-                    return {
-                        ...rest,
-                        skip: (a: any) => !a.exists
-                    };
-                }
-                return rest;
-            }
-            return col;
-        });
-
-        super(_columns, { table });
-    }
-}

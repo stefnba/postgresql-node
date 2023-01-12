@@ -12,6 +12,8 @@ import type {
     addRepositoriesParams
 } from './types';
 import { ConnectionError } from './error';
+import { sqlFile } from './queryFile';
+import { applyFilter } from './filter';
 
 export default class PostgresClient {
     db: Database;
@@ -168,12 +170,15 @@ export default class PostgresClient {
             // attach query
             repo.query = this.queryInit(repo.table);
 
-            console.log(repo);
-
             return {
                 ...acc,
                 [key]: repo
             };
         }, {}) as RegisteredRepositories<T>;
     }
+
+    helpers = {
+        sqlFile: sqlFile,
+        filter: applyFilter
+    };
 }

@@ -12,28 +12,33 @@ chai.use(chaiAsPromised);
 
 const dbClient = new PostgresClient(connection, {
     noWarnings: true,
-    connect: { testOnInit: false, log: false }
+    connect: { testOnInit: false, log: false },
+    query: {
+        onReturn(result, query) {
+            console.log(query);
+        }
+    }
 });
 
 class UserRepo extends DatabaseRepository<UserModel> {
     table = 'users';
-    sqlDir = this.conf.sqlDir([__dirname]);
+    sqlFilesDir = [__dirname, 'db/queryFiles'];
 
     list = (): Promise<UserModel[]> => {
         return this.query.run.many('SELECT * FROM users');
     };
 
-    retrieve = (filter: { id: number }): Promise<UserModel> => {
-        const filterSet = this.conf.filterSet({ id: 'EQUAL' });
-        return this.query.find.one({
+    retrieve = (filter: { id: number }) => {
+        const filterSet = this.filterSet({ id: 'EQUAL' });
+        return this.query.find.one<UserModel>({
             query: 'SELECT * FROM users',
             filter: this.applyFilter(filter, filterSet)
         });
     };
 
     total(): Promise<{ count: number }> {
-        const file = this.conf.sqlFile('');
-        return this.query.run.one('SELECT COUNT(*) from users');
+        const file = this.sqlFile('total.sql', [__dirname, 'db', 'queryFiles']);
+        return this.query.run.one(file);
     }
 
     add(data: {
@@ -41,8 +46,8 @@ class UserRepo extends DatabaseRepository<UserModel> {
         email: string;
         name: string;
     }): Promise<UserModel> {
-        const columns = this.conf.columnSet(['email', 'name', 'rank']);
-        return this.query.add.one({ data, columns, returning: '*' });
+        const columns = this.columnSet(['email', 'name', 'rank']);
+        return this.query.add.one({ data, returning: '*', columns });
     }
 }
 

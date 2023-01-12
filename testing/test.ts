@@ -16,15 +16,15 @@ export type Tables = 'users';
 
 class UserRepo extends DatabaseRepository<User> {
     table = 'users';
-    filters = this.conf.filter({ id: 'INCLUDES' });
+    filters = this.filterSet({ id: 'INCLUDES' });
     queries = {
-        get: this.readSql('testing/db/queryFiles/test.sql')
+        get: this.sqlFile('testing/db/queryFiles/test.sql')
     };
-    columns = { add: this.conf.columns(['name', 'name', 'rank']) };
-    sqlDir = this.conf.sql.directory([__dirname]);
+    columns = { add: this.columnSet(['name', 'name', 'rank']) };
+    sqlFilesDir = [__dirname];
 
     add(data: object) {
-        const cs = this.conf.columns(['id', 'name']);
+        const cs = this.columnSet(['id', 'name']);
         return this.query.add.one({
             data,
             returning: '*'
@@ -46,7 +46,7 @@ class UserRepo extends DatabaseRepository<User> {
     list(filters: { id: Array<number> }): Promise<User[]> {
         return this.query.find.many({
             query: this.queries.get,
-            filter: this.filter(filters, this.filters)
+            filter: this.applyFilter(filters, this.filters)
         });
     }
 }

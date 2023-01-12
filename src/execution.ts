@@ -8,9 +8,15 @@ import {
     UpdateQueryParams,
     RunQueryParams
 } from './types';
-import { concatenateQuery, pgFormat, buildUpdateInsertQuery } from './utils';
+import {
+    concatenateQuery,
+    pgFormat,
+    buildUpdateInsertQuery,
+    queryToString
+} from './utils';
 import pagination from './pagination';
 import { QueryBuildError, QueryExecutionError } from './error';
+import { QueryFile } from 'pg-promise';
 
 /**
  * Executes query against database
@@ -28,6 +34,7 @@ const executeQuery = async (
     command: QueryExecutionCommands,
     params:
         | string
+        | QueryFile
         | (
               | FindQueryParams
               | AddQueryParams
@@ -41,8 +48,8 @@ const executeQuery = async (
 
     // run can have query as string, no object needed
     if (command === 'RUN') {
-        if (typeof params === 'string') {
-            query = pgFormat(params, addParams);
+        if (typeof params === 'string' || params instanceof QueryFile) {
+            query = pgFormat(queryToString(params), addParams);
         }
     }
 
@@ -109,7 +116,11 @@ const executeQuery = async (
         });
     }
 
-    if (typeof params !== 'string' && params.params) {
+    if (
+        typeof params !== 'string' &&
+        !(params instanceof QueryFile) &&
+        params.params
+    ) {
         query = pgFormat(query.trim(), params.params);
     }
 

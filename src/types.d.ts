@@ -1,9 +1,10 @@
-import { IDatabase, ITask, QueryFile } from 'pg-promise';
+import { IDatabase, ITask, QueryFile, IColumnConfig } from 'pg-promise';
 
 import { ConnectionError } from './error';
 import PostgresQuery from './query';
 import { filterOperators } from './filter';
 import DatabaseRepository from './repository';
+import { ColumnSet } from './column';
 
 export type Database = IDatabase<object>;
 
@@ -54,10 +55,7 @@ export type addRepositoriesParams = Record<
 export type RegisteredRepositories<R extends addRepositoriesParams> = {
     [Key in keyof R]: Repository<InstanceType<R[Key]>>;
 };
-export type Repository<R> = Omit<
-    R,
-    'table' | 'columns' | 'filters' | 'query' | 'queries'
->;
+export type Repository<R> = Omit<R, 'table' | 'query' | 'sqlFilesDir'>;
 
 // Errors
 export type QueryErrorArgs = {
@@ -172,19 +170,23 @@ export type FilterOperators = keyof typeof filterOperators;
 export type FilterOperatorParams = {
     column: string | number | symbol;
     value: unknown;
-    alias: string;
+    alias?: string;
 };
 
-export type FilterSet<M> = Record<
+export type FilterSet<M = undefined> = Record<
     string,
     | FilterOperators
-    | { column: keyof M; operator: FilterOperators; alias?: string }
+    | {
+          column: M extends undefined ? string : keyof M;
+          operator: FilterOperators;
+          alias?: string;
+      }
 >;
 
 export type ColumnSetParams<M = undefined> = M extends undefined
-    ? Array<string | { name: string; optional: boolean }>
+    ? Array<string | ({ name: string; optional: boolean } & IColumnConfig<M>)>
     : Array<
-          | { name: keyof M; optional: boolean }
+          | ({ name: keyof M; optional: boolean } & IColumnConfig<M>)
           | keyof M
           | `${string & keyof M}?`
       >;
