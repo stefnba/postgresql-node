@@ -23,19 +23,20 @@ const db = new PostgresClient(connection, {
 describe('FIND', () => {
     describe('MANY', () => {
         it('SHOULD LIST all user records', async () => {
-            const r = await db.query.find.many<UserModel>({
-                query: 'SELECT * FROM Users'
-            });
+            const r = await db.query
+                .find('SELECT * FROM Users')
+                .many<UserModel>();
 
             expect(r).to.be.an('array');
             expect(r[0]).to.have.keys(['id', 'name', 'email', 'rank']);
         });
         it('SHOULD LIST 15 user records', async () => {
             const count = 15;
-            const r = await db.query.find.many<UserModel>({
-                query: 'SELECT * FROM Users',
-                pagination: { pageSize: count, page: 1 }
-            });
+            const r = await db.query
+                .find('SELECT * FROM Users', {
+                    pagination: { pageSize: count, page: 1 }
+                })
+                .many<UserModel>();
 
             expect(r).to.be.an('array');
             expect(r).to.have.length(count);
@@ -44,17 +45,18 @@ describe('FIND', () => {
     });
     describe('ONE', () => {
         it('SHOULD LIST one user record', async () => {
-            const r = await db.query.find.one<UserModel>({
-                query: 'SELECT * FROM Users WHERE id = 1'
-            });
+            const r = await db.query
+                .find('SELECT * FROM Users WHERE id = 1')
+                .one<UserModel>();
 
             expect(r).to.have.keys(['id', 'name', 'email', 'rank']);
         });
         it('SHOULD LIST one user record with param id provided', async () => {
-            const r = await db.query.find.one<UserModel>({
-                query: 'SELECT * FROM Users WHERE id = $<id>',
-                params: { id: 1 }
-            });
+            const r = await db.query
+                .find('SELECT * FROM Users WHERE id = $<id>', {
+                    params: { id: 1 }
+                })
+                .one<UserModel>();
 
             expect(r).to.have.keys(['id', 'name', 'email', 'rank']);
             expect(r.id).to.equal(1);

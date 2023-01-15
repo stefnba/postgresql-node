@@ -21,34 +21,39 @@ const db = new PostgresClient(connection, {
     noWarnings: true
 });
 
-describe.only('UPDATE', () => {
+describe('UPDATE', () => {
     it('SHOULD UPDATE one user record without columns and return updated name', async () => {
-        const update = await db.query.update.one<UserModel>({
-            data: {
-                name: 'UPDATED'
-            },
-            filter: 'id = 1',
-            table: 'users',
-            returning: 'name'
-        });
+        const update = await db.query
+            .update(
+                {
+                    name: 'UPDATED'
+                },
+                {
+                    filter: 'id = 1',
+                    table: 'users',
+                    returning: 'name'
+                }
+            )
+            .one<UserModel>();
 
         expect(update.name).to.equal('UPDATED');
     });
     it('SHOULD THROW QueryBuildError due to missing table', async () => {
         const rank = randomInt();
 
-        const r = db.query.update.one<UserModel>({
-            data: {
-                name: `add-${rank}`
-            },
-            returning: 'id, name'
-        });
+        const r = () =>
+            db.query.update(
+                {
+                    name: `add-${rank}`
+                },
+                {
+                    returning: 'id, name'
+                }
+            );
 
-        await expect(r).to.be.rejectedWith(QueryBuildError);
-        await expect(r).to.be.rejectedWith('A table name is required');
-        await expect(r).to.be.eventually.rejected.and.has.property('type');
-        await expect(r)
-            .to.be.eventually.rejected.and.property('type')
+        expect(r)
+            .to.throw(QueryBuildError, 'A table name is required')
+            .and.property('type')
             .to.equal('TABLE_NAME_MISSING');
     });
 });

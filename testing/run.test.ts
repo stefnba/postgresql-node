@@ -22,34 +22,37 @@ const db = new PostgresClient(connection, {
 
 describe('RUN', () => {
     it('SHOULD RUN simple query', async () => {
-        const r = await db.query.run.one<{ now: Date }>('SELECT NOW()', {
-            id: 1222
-        });
+        const r = await db.query
+            .run('SELECT NOW()', {
+                id: 1222
+            })
+            .one<{ now: Date }>();
 
         expect(r).to.have.key('now');
     });
     it('SHOULD RUN SELECT query with params to retrieve one user', async () => {
-        const r = await db.query.run.one<UserModel>(
-            'SELECT * from users WHERE id = $<id>',
-            { id: 1 }
-        );
+        const r = await db.query
+            .run('SELECT * from users WHERE id = $<id>', { id: 1 })
+            .one<UserModel>();
 
         expect(r).to.have.keys(['id', 'name', 'email', 'rank']);
     });
     it('SHOULD INSERT ONE USER with run query', async () => {
         const rank = randomInt();
-        const r = await db.query.run.one<UserModel>(
-            "INSERT INTO users(name, email, rank) VALUES ('RUN-Test', $<email>, $<rank>) RETURNING *",
-            {
-                email: `${rank}@mail.com`,
-                rank
-            }
-        );
+        const r = await db.query
+            .run(
+                "INSERT INTO users(name, email, rank) VALUES ('RUN-Test', $<email>, $<rank>) RETURNING *",
+                {
+                    email: `${rank}@mail.com`,
+                    rank
+                }
+            )
+            .one<UserModel>();
 
         expect(r).to.have.keys(['id', 'name', 'email', 'rank']);
     });
     it('SHOULD SELECT all users with run query and no params', async () => {
-        const r = await db.query.run.many<UserModel>('SELECT * from users');
+        const r = await db.query.run('SELECT * from users').many<UserModel>();
 
         expect(r).to.be.an('array');
         expect(r[0]).to.have.keys(['id', 'name', 'email', 'rank']);
@@ -69,7 +72,7 @@ describe('RUN', () => {
             }
         });
 
-        await dbNew.query.run.many('SELECT * FROM users');
+        await dbNew.query.run('SELECT * FROM users').many();
 
         expect(query).to.be.a('string');
         expect(query).to.equal('SELECT * FROM users');

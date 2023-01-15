@@ -25,29 +25,28 @@ class UserRepo extends DatabaseRepository<UserModel> {
     sqlFilesDir = [__dirname, 'db/queryFiles'];
 
     list = (): Promise<UserModel[]> => {
-        return this.query.run.many('SELECT * FROM users');
+        return this.query.run('SELECT * FROM users').many();
     };
 
     retrieve = (filter: { id: number }) => {
         const filterSet = this.filterSet({ id: 'EQUAL' });
-        return this.query.find.one<UserModel>({
-            query: 'SELECT * FROM users',
-            filter: this.applyFilter(filter, filterSet)
-        });
+        return this.query
+            .find('SELECT * FROM users', {
+                filter: this.applyFilter(filter, filterSet)
+            })
+            .one<UserModel>();
     };
 
-    total(): Promise<{ count: number }> {
+    total() {
         const file = this.sqlFile('total.sql', [__dirname, 'db', 'queryFiles']);
-        return this.query.run.one(file);
+        return this.query.run(file).one<{ count: number }>();
     }
 
-    add(data: {
-        rank: number;
-        email: string;
-        name: string;
-    }): Promise<UserModel> {
+    add(data: { rank: number; email: string; name: string }) {
         const columns = this.columnSet(['email', 'name', 'rank']);
-        return this.query.add.one({ data, returning: '*', columns });
+        return this.query
+            .add(data, { returning: '*', columns })
+            .one<UserModel>();
     }
 }
 
@@ -55,7 +54,7 @@ const DatabaseRepos = dbClient.addRepositories({
     user: UserRepo
 });
 
-describe.only('REPO', () => {
+describe('REPO', () => {
     it('SHOULD LIST users records', async () => {
         const r = await DatabaseRepos.user.list();
 
