@@ -24,6 +24,15 @@ import { sqlFile } from './queryFile';
  * class UserRepo extends DatabaseRepository {
  *      // specify table name for this repository
  *      table = 'users';
+ *      // specify dir for SQL files
+ *      sqlFilesDir = [__dirname, 'sqlFiles'];
+ *      // specify filterSet that can be referenced within the Repo
+ *      filterSet = this.filterSet({ id: 'INCLUDES' });
+ *      // specify columnSet that can be referenced within the Repo
+ *      columns = this.columnSet(['name', 'name', 'rank']);
+ *      // specify columnSet that can be referenced within the Repo
+ *      // if sqlFilesDir is specified, it is included
+ *      queries = this.sqlFile('sqlFile.sql');
  * }
  */
 export default class DatabaseRepository<M> {
@@ -67,7 +76,7 @@ export default class DatabaseRepository<M> {
      * @param filters
      * @param filterSet
      * Set of allowed filters and each operator (e.g. EQUAL, INCLUDES)
-     * @returns string
+     * @returns
      * Query as string with conditions concetenated with AND based on provided filter object and allowed filters by FilterSet.
      * WHERE clause never included
      */
@@ -77,7 +86,7 @@ export default class DatabaseRepository<M> {
 
     /**
      * Reads a prepared SQL QueryFile.
-     * @param path string
+     * @param path
      * Location to .sql file
      * @returns
      * QueryFile Object
