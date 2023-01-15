@@ -1,4 +1,4 @@
-import pgPromise from 'pg-promise';
+import pgPromise, { IColumnDescriptor } from 'pg-promise';
 import type { ColumnSetParams } from './types';
 
 const PgColumnSet = pgPromise().helpers.ColumnSet;
@@ -11,17 +11,17 @@ export class ColumnSet<M = undefined> extends PgColumnSet<M> {
                 if (col.endsWith('?')) {
                     return {
                         name: col.replace('?', ''),
-                        skip: (a: any) => !a.exists
+                        skip: (a: IColumnDescriptor<never>) => !a.exists
                     };
                 }
                 return col;
             }
             if (typeof col === 'object' && 'optional' in col) {
-                const { optional, ...rest } = col as { optional: boolean };
+                const { optional, ...rest } = col;
                 if (optional) {
                     return {
                         ...rest,
-                        skip: (a: any) => !a.exists
+                        skip: (c: IColumnDescriptor<never>) => !c.exists
                     };
                 }
                 return rest;

@@ -1,10 +1,17 @@
-import { IDatabase, ITask, QueryFile, IColumnConfig } from 'pg-promise';
+import {
+    IDatabase,
+    ITask,
+    QueryFile,
+    IColumnConfig,
+    IBaseProtocol
+} from 'pg-promise';
 
 import { ConnectionError } from './error';
-import PostgresQuery from './query';
+import QueryBuilder from './builder';
 import { filterOperators } from './filter';
 import DatabaseRepository from './repository';
 import { ColumnSet } from './column';
+// import { ColumnSet } from './column';
 
 export type Database = IDatabase<object>;
 
@@ -82,7 +89,7 @@ export type QueryBuildErrorParams = QueryErrorArgs & {
 };
 
 export type QueryResultErrorParams = QueryErrorArgs & {
-    type: 'ONE_RECORD_VIOLATION';
+    type: 'ONE_RECORD_VIOLATION' | 'RECORD_NOT_FOUND';
 };
 
 export type ConnectionErrorPublic = Pick<
@@ -106,6 +113,13 @@ export type PostgresErrorObject = Error & {
 };
 
 // Query
+export type QueryRunner = IBaseProtocol<unknown>['any'];
+export type QueryExecutionParams = {
+    table?: string;
+    command?: QueryExecutionCommands;
+    log?: DatabaseOptions['query'];
+};
+
 export type QueryInput = string | QueryFile;
 export type QueryCommands = 'SELECT' | 'UPDATE' | 'INSERT';
 export type QueryExecutionCommands = QueryCommands | 'RUN';
@@ -117,6 +131,7 @@ export type QueryClauses =
     | 'LIMIT'
     | 'OFFSET'
     | 'ORDER';
+
 export type QueryConcatenationParams = Array<
     | QueryInput
     | {
@@ -131,41 +146,36 @@ export type BatchQuery = <R>(
 
 export type TransactionClient = ITask<object>;
 
-export type BatchQueryCallback<R = any> = (t: PostgresQuery) => Promise<R>;
+export type BatchQueryCallback<R = any> = (t: QueryBuilder) => Promise<R>;
 
-export type FindQueryParams = {
-    query: QueryInput;
+export type FindQueryParams<M> = {
     params?: object;
-    filter?: string;
-    pagination?: Pagination;
+    filter?: FilterInput<M>;
+    pagination?: PaginationInput;
 };
 
-export type RunQueryParams = {
-    query: QueryInput;
-    params?: object;
-};
-
-export type Pagination = {
+export type PaginationInput = {
     page: number;
     pageSize?: number;
 };
 
-export type AddQueryParams<M = undefined> = {
-    data: object | object[];
-    columns?: ColumnSetParams<M>;
-    params?: object;
+export type AddQueryParams<M> = {
+    columns?: ColumnsInput<M>;
     returning?: QueryInput;
     table?: string;
     conflict?: string;
 };
 
-export type UpdateQueryParams<M = undefined> = Omit<
-    AddQueryParams<M>,
-    'conflict'
-> &
-    Pick<FindQueryParams, 'filter'>;
+export type UpdateQueryParams<M> = Omit<AddQueryParams<M>, 'conflict'> &
+    Pick<FindQueryParams<M>, 'filter'>;
+
+export type DataInput = object | object[];
+export type ColumnsInput<M> = ColumnSetParams<M> | ColumnSet<M>;
 
 // Filters
+export type FilterInput<M> =
+    | string
+    | { filter: object; filterSet: FilterSet<M> };
 export type FilterOperators = keyof typeof filterOperators;
 export type FilterOperatorParams = {
     column: string | number | symbol;
@@ -184,9 +194,9 @@ export type FilterSet<M = undefined> = Record<
 >;
 
 export type ColumnSetParams<M = undefined> = M extends undefined
-    ? Array<string | ({ name: string; optional: boolean } & IColumnConfig<M>)>
+    ? Array<string | ({ name: string; optional?: boolean } & IColumnConfig<M>)>
     : Array<
-          | ({ name: keyof M; optional: boolean } & IColumnConfig<M>)
+          | ({ name: keyof M; optional?: boolean } & IColumnConfig<M>)
           | keyof M
           | `${string & keyof M}?`
       >;

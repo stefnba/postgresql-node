@@ -1,4 +1,4 @@
-import PostgresQuery from './query';
+import QueryBuilder from './builder';
 import {
     Database,
     DatabaseOptions,
@@ -18,7 +18,7 @@ export default class PostgresBatchQuery {
     }
 
     private initQuery(t: TransactionClient) {
-        return new PostgresQuery(t, this.options);
+        return new QueryBuilder(t, this.options);
     }
 
     async executeTransaction(callback: BatchQueryCallback): Promise<void> {

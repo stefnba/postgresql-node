@@ -1,6 +1,6 @@
 import { pgFormat } from './utils';
 
-import type { FilterOperatorParams, FilterSet } from './types';
+import type { FilterInput, FilterOperatorParams, FilterSet } from './types';
 
 const columnAlias = (column: string | number | symbol, alias?: string) => {
     if (alias) {
@@ -66,6 +66,31 @@ export const filterOperators = {
         pgFormat("LIKE LOWER('%$<value:value>%')", { value })
 };
 
+/**
+ * Handler function or constructing filter string in case object was provided. Calls applyFilter function
+ * @param filter
+ * @param table
+ * @returns
+ * Filter string from applyFilter()
+ */
+export const buildFilters = (
+    filter?: FilterInput<any>,
+    table?: string
+): string | undefined => {
+    if (!filter) return undefined;
+    if (typeof filter === 'string') return filter;
+
+    return applyFilter(filter.filter, filter?.filterSet, table);
+};
+
+/**
+ *
+ * @param filters
+ * @param filterSet
+ * @param table
+ * @returns string
+ * Filter string
+ */
 export const applyFilter = (
     filters: object,
     filterSet: FilterSet,

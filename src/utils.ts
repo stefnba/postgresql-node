@@ -4,7 +4,7 @@ import type {
     QueryInput,
     QueryConcatenationParams,
     QueryInserUpdateCommands,
-    ColumnSetParams
+    ColumnsInput
 } from './types';
 import { QueryBuildError } from './error';
 import { ColumnSet } from './column';
@@ -59,6 +59,9 @@ export function concatenateQuery(parts: QueryConcatenationParams): string {
     let fullQuery = '';
 
     parts.forEach((part) => {
+        if (!part) {
+            return;
+        }
         // normal string, QueryFile no longer possible here
         if (typeof part === 'string') {
             fullQuery += ` ${part}`;
@@ -150,21 +153,24 @@ export function concatenateQuery(parts: QueryConcatenationParams): string {
             return;
         }
     });
-    return fullQuery;
+    return fullQuery.trim();
 }
 
 /**
- *
+ * Simplifies INSERT or UPDATE query building based on inputs
  * @param command
+ * Decides if INSERT or UPDATE to be built
  * @param data
+ * Data input
  * @param columns
  * @param table
+ * Table name
  * @returns
  */
-export const buildUpdateInsertQuery = (
+export const buildUpdateInsertQuery = <M>(
     command: QueryInserUpdateCommands,
     data: object,
-    columns?: ColumnSetParams,
+    columns?: ColumnsInput<M>,
     table?: string
 ) => {
     if (!table) {
@@ -176,25 +182,24 @@ export const buildUpdateInsertQuery = (
     }
 
     const _command = command === 'INSERT' ? 'insert' : 'update';
+    const _columns = columns
+        ? columns instanceof ColumnSet
+            ? columns
+            : new ColumnSet(columns)
+        : null;
 
     try {
-        return pgHelpers[_command](
-            data,
-            columns ? new ColumnSet(columns) : null,
-            table
-        );
+        return pgHelpers[_command](data, _columns, table);
     } catch (err: any) {
         if (err.message.match(/Property '([a-zA-Z]+)' doesn't exist\./g)) {
             throw new QueryBuildError({
-                message: 'A table name is required for UPDATE command',
+                message: err.message,
                 type: 'DATA_PROPERTY_MISSING',
                 table,
                 column: 'rank',
                 command
             });
         }
-
-        console.log();
 
         console.log('dddd', err);
     }

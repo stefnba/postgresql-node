@@ -38,8 +38,8 @@ export class QueryResultError extends QueryError {
     type?: QueryResultErrorParams['type'];
 
     constructor(params: QueryResultErrorParams) {
-        const { message, type, command } = params;
-        super({ message, command });
+        const { message, type, command, query } = params;
+        super({ message, command, query });
 
         this.type = type;
     }

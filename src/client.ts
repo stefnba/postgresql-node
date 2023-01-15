@@ -1,7 +1,7 @@
 import pgPromise from 'pg-promise';
 import chalk from 'chalk';
 
-import PostgresQuery from './query';
+import QueryBuilder from './builder';
 
 import type {
     DatabaseConnectionParams,
@@ -14,10 +14,11 @@ import type {
 import { ConnectionError } from './error';
 import { sqlFile } from './queryFile';
 import { applyFilter } from './filter';
+import { ColumnSet } from './column';
 
 export default class PostgresClient {
     db: Database;
-    readonly query: PostgresQuery;
+    readonly query: QueryBuilder;
     private connectionStatus: DatabaseConnectionStatus;
     private options: DatabaseOptions;
 
@@ -64,14 +65,14 @@ export default class PostgresClient {
     }
 
     /**
-     * Initiates PostgresQuery for client
+     * Initiates QueryBuilder for client
      * @param table string
      * Define table for logging, add and update methods
      * @returns
-     * New PostgresQuery instance
+     * New QueryBuilder instance
      */
     private queryInit(table?: string) {
-        return new PostgresQuery(this.db, this.options, table);
+        return new QueryBuilder(this.db, this.options, table);
     }
 
     /**
@@ -177,8 +178,12 @@ export default class PostgresClient {
         }, {}) as RegisteredRepositories<T>;
     }
 
+    /**
+     * Helper methods that are exposed for convenience purpose
+     */
     helpers = {
         sqlFile: sqlFile,
-        filter: applyFilter
+        filter: applyFilter,
+        ColumnSet: ColumnSet
     };
 }

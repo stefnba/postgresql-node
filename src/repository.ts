@@ -1,6 +1,6 @@
 import { applyFilter } from './filter';
 import type { ColumnSetParams, FilterSet } from './types';
-import PostgresQuery from './query';
+import QueryBuilder from './builder';
 import { sqlFile } from './queryFile';
 
 /**
@@ -30,7 +30,7 @@ export default class DatabaseRepository<M> {
     /**
      * Query client that can be used in methods to run queries against database connection
      */
-    query!: PostgresQuery;
+    query!: QueryBuilder;
     /**
      * Name of table in database. If specified, UPDATE and ADD queries don't require the param "table".
      * */

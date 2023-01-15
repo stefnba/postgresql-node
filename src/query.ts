@@ -1,175 +1,184 @@
-import PostgresBatchQuery from './batch';
 import {
-    Database,
     DatabaseOptions,
-    FindQueryParams,
-    AddQueryParams,
-    UpdateQueryParams,
-    RunQueryParams,
-    BatchQueryCallback,
-    TransactionClient,
     QueryExecutionCommands,
-    BatchQuery
+    QueryRunner,
+    QueryExecutionParams
 } from './types';
-import executeQuery from './execution';
-import { QueryError, QueryResultError } from './error';
-import { QueryFile } from 'pg-promise';
 
-/**
- *
- */
-export default class PostgresQuery {
-    table?: string;
-    private queryClient: string;
+import {
+    QueryBuildError,
+    QueryExecutionError,
+    QueryResultError
+} from './error';
 
-    find: ReturnType<typeof queryReturn<FindQueryParams>>;
-    update: ReturnType<typeof queryReturn<UpdateQueryParams>>;
-    add: ReturnType<typeof queryReturn<AddQueryParams>>;
-    run: ReturnType<typeof queryReturn<RunQueryParams>>;
-
-    transaction: BatchQuery;
-    batch: BatchQuery;
+export default class Query {
+    private result?: object | object[];
+    /**
+     * Query string that was provided or built
+     */
+    private query: string;
+    /**
+     * Pg-promise method to execute query
+     */
+    private queryRunner: QueryRunner;
+    /**
+     * Name of db table if provided
+     */
+    private table?: string;
+    private command?: QueryExecutionCommands;
+    private customLog?: DatabaseOptions['query'];
 
     constructor(
-        client: Database | TransactionClient,
-        options: DatabaseOptions,
-        table?: string
+        queryRunner: QueryRunner,
+        query: string,
+        params: QueryExecutionParams
     ) {
-        this.table = table;
-        this.queryClient = client.constructor.name;
-
-        this.find = queryReturn<FindQueryParams>(
-            client,
-            options,
-            'SELECT',
-            table
-        );
-        this.update = queryReturn<UpdateQueryParams>(
-            client,
-            options,
-            'UPDATE',
-            table
-        );
-        this.add = queryReturn<AddQueryParams>(
-            client,
-            options,
-            'INSERT',
-            table
-        );
-        this.run = queryReturn<RunQueryParams>(client, options, 'RUN', table);
-
-        this.transaction = (callback: BatchQueryCallback) => {
-            const trx = new PostgresBatchQuery(client, options);
-            return trx.executeTransaction(callback);
-        };
-        this.batch = (callback: BatchQueryCallback) => {
-            const trx = new PostgresBatchQuery(client, options);
-            return trx.executeBatch(callback);
-        };
+        this.query = query;
+        this.queryRunner = queryRunner;
+        this.table = params.table;
+        this.command = params.command;
+        this.customLog = params.log;
     }
-}
 
-/**
- *
- * @param client
- * @param options
- * @param command
- * @param table
- * @returns
- */
-function queryReturn<
-    P extends
-        | FindQueryParams
-        | RunQueryParams
-        | AddQueryParams
-        | UpdateQueryParams
->(
-    client: Database | TransactionClient,
-    options: DatabaseOptions,
-    command: QueryExecutionCommands,
-    table?: string
-) {
     /**
-     *
-     * @param params
+     * Executes query and returns none db record or throws Error
+     * @returns
+     * One db record or null
      */
-    async function one<R>(params: P): Promise<R>;
-    async function one<R>(
-        query: string | QueryFile,
-        params?: object
-    ): Promise<R>;
-    async function one<R>(
-        params: P | string | QueryFile,
-        addParams?: object
-    ): Promise<R> {
-        const result = await executeQuery(
-            client,
-            options,
-            command,
-            params,
-            table,
-            addParams
-        );
-        if (Array.isArray(result)) {
-            if (result.length === 1) {
-                return result[0];
-            }
+    async one<R>(): Promise<R> {
+        const result = await this.getResult();
+
+        if (result.length === 0 || !result) {
             throw new QueryResultError({
-                table,
-                command,
+                table: this.table,
+                command: this.command,
+                type: 'RECORD_NOT_FOUND',
+                message: 'Record does not exist',
+                query: this.query
+            });
+        }
+        if (result.length > 1) {
+            throw new QueryResultError({
+                table: this.table,
+                command: this.command,
                 type: 'ONE_RECORD_VIOLATION',
                 message: 'Multiple records not allowed',
-                query: ''
+                query: this.query
+            });
+        }
+        return result[0];
+    }
+
+    /**
+     * Executes query and returns either none db record or none
+     * @returns
+     * One db record or null
+     */
+    async oneOrNone<R>(): Promise<R | null> {
+        const result = await this.getResult();
+
+        if (result.length > 1) {
+            throw new QueryResultError({
+                table: this.table,
+                command: this.command,
+                type: 'ONE_RECORD_VIOLATION',
+                message: 'Multiple records not allowed',
+                query: this.query
+            });
+        }
+        if (result.length === 0 || !result) {
+            return null;
+        }
+        return result[0];
+    }
+
+    /**
+     * Executes query and returns either many records or none
+     * @returns
+     * Array of db records
+     */
+    manyOrNone<R>(): Promise<R[] | undefined> {
+        return this.getResult();
+    }
+
+    /**
+     * Executes query and returns many db records or throw Error if none were found
+     * @returns
+     * Array of db records or Error
+     */
+    async many<R>(): Promise<R[]> {
+        const result = await this.getResult();
+        if (result.length === 0 || !result) {
+            throw new QueryResultError({
+                table: this.table,
+                command: this.command,
+                type: 'RECORD_NOT_FOUND',
+                message: 'Record does not exist',
+                query: this.query
             });
         }
         return result;
     }
 
     /**
-     *
-     * @param params
+     * Executes query but does not return any records
      */
-    async function many<R>(params: P): Promise<R[]>;
-    async function many<R>(query: string, params?: object): Promise<R[]>;
-    async function many<R>(
-        params: P | string,
-        addParams?: object
-    ): Promise<R[]> {
-        const result = await executeQuery(
-            client,
-            options,
-            command,
-            params,
-            table,
-            addParams
-        );
+    async none(): Promise<void> {
+        await this.getResult();
+    }
+
+    /**
+     * Decides whether to execute query or used cached results from previously executed query
+     * @returns Array<object> | object
+     * Result, either
+     */
+    private async getResult() {
+        if (this.result) return this.result;
+        const result = await this.execute();
+        this.result = result;
         return result;
     }
 
     /**
-     *
-     * @param params
+     * Triggers query runner to execute query and return results.
+     * Also handle errors
+     * @returns
+     * Result from query
      */
-    async function none(params: P): Promise<void>;
-    async function none(query: string, params?: object): Promise<void>;
-    async function none(
-        params: P | string,
-        additionalParams?: object
-    ): Promise<void> {
-        console.log(additionalParams);
-        await executeQuery(
-            client,
-            options,
-            command,
-            params,
-            table,
-            additionalParams
-        );
-    }
+    private async execute() {
+        if (!this.query || this.query.trim() === '') {
+            throw new QueryBuildError({
+                message: 'Query cannot be empty',
+                type: 'EMPTY_QUERY',
+                query: this.query,
+                command: this.command
+            });
+        }
 
-    return {
-        one,
-        many,
-        none
-    };
+        // console.log('executed');
+        return this.queryRunner(this.query)
+            .then((r) => {
+                if (this.customLog?.onReturn) {
+                    this.customLog?.onReturn(r, this.query);
+                }
+                return r;
+            })
+            .catch((err) => {
+                if (this.customLog?.onError) {
+                    this.customLog?.onError(
+                        { message: err.message },
+                        this.query
+                    );
+                } else {
+                    throw new QueryExecutionError({
+                        command: this.command,
+                        message: err.message,
+                        query: this.query,
+                        table: this.table,
+                        cause: err
+                    });
+                }
+                return err;
+            });
+    }
 }

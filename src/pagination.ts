@@ -1,4 +1,4 @@
-import type { Pagination } from './types';
+import type { PaginationInput } from './types';
 import { pgFormat } from './utils';
 
 const defaultPageSize = 25;
@@ -8,7 +8,7 @@ const defaultPageSize = 25;
  * @param pagination which page and how many records to show
  * @returns Query that can be integrated in run statement with LIMIT and OFFSET
  */
-const pageSize = (pagination: Pagination | undefined) => {
+const pageSize = (pagination: PaginationInput | undefined) => {
     if (!pagination) return;
     const { pageSize = defaultPageSize } = pagination;
 
@@ -20,7 +20,7 @@ const pageSize = (pagination: Pagination | undefined) => {
  * @param pagination which page and how many records to show
  * @returns Query that can be integrated in run statement with LIMIT and OFFSET
  */
-const page = (pagination: Pagination | undefined) => {
+const page = (pagination: PaginationInput | undefined) => {
     if (!pagination) return;
     const { page, pageSize = defaultPageSize } = pagination;
 
