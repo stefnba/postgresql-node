@@ -19,7 +19,7 @@ import { buildFilters } from './filter';
 /**
  * Simplifies construction of pg queries.
  */
-export default class QueryBuilder {
+export default class QueryBuilder<Model = undefined> {
     private client: Database | TransactionClient;
     private table?: string;
     private options: DatabaseOptions;
@@ -41,7 +41,10 @@ export default class QueryBuilder {
      * @returns
      *
      */
-    find<M>(query: QueryInput, params?: FindQueryParams<M>) {
+    find<M = Model extends undefined ? unknown : Model>(
+        query: QueryInput,
+        params?: FindQueryParams<Model extends undefined ? M : Model>
+    ): Query {
         const _query = concatenateQuery([
             pgFormat(query, params?.params),
             { type: 'WHERE', query: buildFilters(params?.filter) },
@@ -76,7 +79,10 @@ export default class QueryBuilder {
      * @param params
      * @returns
      */
-    add<M>(data: DataInput, params?: AddQueryParams<M>) {
+    add<M = Model extends undefined ? unknown : Model>(
+        data: DataInput,
+        params?: AddQueryParams<Model extends undefined ? M : Model>
+    ) {
         const add = buildUpdateInsertQuery(
             'INSERT',
             data,
@@ -102,7 +108,10 @@ export default class QueryBuilder {
      * @param params
      * @returns
      */
-    update<M>(data: DataInput, params?: UpdateQueryParams<M>): Query {
+    update<M = Model extends undefined ? unknown : Model>(
+        data: DataInput,
+        params?: UpdateQueryParams<Model extends undefined ? M : Model>
+    ): Query {
         const update = buildUpdateInsertQuery(
             'UPDATE',
             data,

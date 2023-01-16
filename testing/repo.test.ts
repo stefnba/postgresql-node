@@ -15,7 +15,7 @@ const dbClient = new PostgresClient(connection, {
     connect: { testOnInit: false, log: false },
     query: {
         onReturn(result, query) {
-            console.log(query);
+            // console.log(query);
         }
     }
 });

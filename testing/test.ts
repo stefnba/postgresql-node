@@ -24,11 +24,12 @@ export type Tables = 'users';
 
 class UserRepo extends DatabaseRepository<User> {
     table = 'users';
-    sqlFilesDir = [__dirname];
+    sqlFilesDir = [__dirname, 'db/queryFiles'];
 
     private filters = this.filterSet({ id: 'INCLUDES' });
     private queries = {
-        get: this.sqlFile('testing/db/queryFiles/test.sql')
+        get: this.sqlFile('test.sql'),
+        a: this.sqlFile('test.sql')
     };
     private columns = { add: this.columnSet(['name', 'name', 'rank']) };
 
@@ -37,7 +38,7 @@ class UserRepo extends DatabaseRepository<User> {
         return this.query
             .add(data, {
                 returning: '*',
-                columns
+                columns: ['email']
             })
             .one<User>();
     }
@@ -45,23 +46,37 @@ class UserRepo extends DatabaseRepository<User> {
     update(data: object, id: number) {
         const columns = this.columnSet(['email']);
         const filter = this.applyFilter({ id }, { id: 'EQUAL' });
-        return this.query.update(data, { columns, filter }).one();
+        return this.query
+            .update(data, {
+                columns: [{ name: 'email', optional: true }],
+                filter
+            })
+            .one<User>();
     }
 
-    retrieve(id: number): Promise<User> {
+    retrieve(id: number) {
         return this.query
             .find('SELECT * FROM users WHERE id = $<id>', {
                 params: { id }
             })
-            .one();
+            .one<User>();
     }
 
-    list(filters: { id: Array<number> }): Promise<User[]> {
+    list(filters?: { id: Array<number> }) {
         return this.query
             .find(this.queries.get, {
-                filter: this.applyFilter(filters, this.filters)
+                filter: {
+                    filter: filters,
+                    filterSet: { id: { column: 'email', operator: 'EQUAL' } }
+                },
+                pagination: { pageSize: 3 }
             })
-            .many();
+            .many<User>();
+        // return this.query
+        //     .find(this.queries.get, {
+        //         filter: this.applyFilter(filters, this.filters)
+        //     })
+        //     .many();
     }
 }
 
@@ -70,9 +85,23 @@ const main = async () => {
 
     const a = await client.query.run('SELECT * FROM users').many();
 
-    const QueryRepositories = client.addRepositories({
+    const b = await client.query
+        .find<User>('SELECT * FROM users', { pagination: { pageSize: 3 } })
+        .many<User>();
+
+    console.log(b);
+
+    const QueryRepo = client.addRepositories({
         user: UserRepo
     });
+
+    const c = await QueryRepo.user.list();
+
+    console.log(c);
+
+    // client.query.transaction(async (t) => {
+    //     await t.add<User>({ id: 1 }, { columns: ['email'] }).many();
+    // });
 };
 
 main();

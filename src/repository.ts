@@ -37,48 +37,48 @@ import { sqlFile } from './queryFile';
  */
 export default class DatabaseRepository<M> {
     /**
-     * Query client that can be used in methods to run queries against database connection
+     * Query client that can be used in methods to run queries against database connection.
      */
-    query!: QueryBuilder;
+    query!: QueryBuilder<M>;
     /**
      * Name of table in database. If specified, UPDATE and ADD queries don't require the param "table".
      * */
     table!: string;
     /**
      * Path to base directory that contains .sql files for queries
-     * If not specified, root directory is base path
+     * If not specified, root directory is base path.
      */
     protected sqlFilesDir?: string | string[];
 
     /**
-     * Creates new filterSet that defines the filters that are allowed for a SELECT or UPDATE query
-     * @param filterSet object
-     *
+     * Creates new filterSet that defines the filters that are allowed for a SELECT or UPDATE query.
+     * @param filterSet
+     * Filter configuration per field.
      * @returns
-     * Configured filterSet
+     * Configured filterSet.
      */
     protected filterSet(filterSet: FilterSet<M>) {
         return filterSet;
     }
 
     /**
-     * Creates new columnSet that defines the columns that are allowed and/or required for a UPDATE or INSERT query
+     * Creates new columnSet that defines the columns that are allowed and/or required for a UPDATE or INSERT query.
      * @param columns
      * @returns
-     * Configured columnSet
+     * Configured columnSet.
      */
     protected columnSet(columns: ColumnSetParams<M>) {
-        return columns as ColumnSetParams;
+        return columns;
     }
 
     /**
-     * Translates filter objected into WHERE query part with only allowed columns as provided as filterSet
+     * Translates filter objected into WHERE query part with only allowed columns as provided as filterSet.
      * @param filters
      * @param filterSet
-     * Set of allowed filters and each operator (e.g. EQUAL, INCLUDES)
+     * Set of allowed filters and each operator (e.g. EQUAL, INCLUDES).
      * @returns
      * Query as string with conditions concetenated with AND based on provided filter object and allowed filters by FilterSet.
-     * WHERE clause never included
+     * WHERE clause never included.
      */
     protected applyFilter(filters: object, filterSet: FilterSet<M>): string {
         return applyFilter(filters, filterSet as FilterSet, this.table);
@@ -87,9 +87,11 @@ export default class DatabaseRepository<M> {
     /**
      * Reads a prepared SQL QueryFile.
      * @param path
-     * Location to .sql file
+     * Location to .sql file.
+     * @param directory
+     * Path to dir that contains .sql file. If specified, overwrites sqlFilesDir property.
      * @returns
-     * QueryFile Object
+     * QueryFile Object.
      */
     protected sqlFile(path: string | string[], directory?: string | string[]) {
         return sqlFile(path, directory || this.sqlFilesDir);
