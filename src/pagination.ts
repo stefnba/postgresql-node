@@ -22,7 +22,7 @@ const pageSize = (pagination: PaginationInput | undefined) => {
  */
 const page = (pagination: PaginationInput | undefined) => {
     if (!pagination) return;
-    const { page, pageSize = defaultPageSize } = pagination;
+    const { page = 1, pageSize = defaultPageSize } = pagination;
 
     const offset = page > 0 ? (page - 1) * pageSize : 0;
     return pgFormat('OFFSET $<offset>', { offset });
