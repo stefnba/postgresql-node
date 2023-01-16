@@ -135,8 +135,9 @@ export default class QueryBuilder<Model = undefined> {
     }
 
     /**
-     *
+     * Executes multiple queries with a single connection pool.
      * @param callback
+     * Queries that should be executed.
      * @returns
      */
     batch(callback: BatchQueryCallback) {
@@ -145,8 +146,11 @@ export default class QueryBuilder<Model = undefined> {
     }
 
     /**
-     *
+     * Initiates a new SQL transaction.
+     * A SQL transaction is a grouping of one or more SQL statements that interact with a database.
+     * A transaction in its entirety can commit to a database as a single logical unit or rollback (become undone) as a single logical unit.
      * @param callback
+     * Queries that should be executed.
      * @returns
      */
     transaction(callback: BatchQueryCallback) {
