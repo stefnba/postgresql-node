@@ -76,8 +76,8 @@ export function concatenateQuery(parts: QueryConcatenationParams): string {
         // object
         const { query: q, type } = part;
 
-        // return if undefined
-        if (q === undefined) return;
+        // return if undefined or empty
+        if (q === undefined || queryToString(q).trim() === '') return;
         const query = pgFormat(q);
 
         if (type === 'RETURNING') {

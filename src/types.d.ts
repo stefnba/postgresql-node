@@ -57,7 +57,8 @@ export type DatabaseOptions = {
 
 export type addRepositoriesParams = Record<
     string,
-    typeof DatabaseRepository<never>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    typeof DatabaseRepository<any>
 >;
 export type RegisteredRepositories<R extends addRepositoriesParams> = {
     [Key in keyof R]: Repository<InstanceType<R[Key]>>;
@@ -84,7 +85,11 @@ export type ConnectionErrorArgs = {
 };
 
 export type QueryBuildErrorParams = QueryErrorArgs & {
-    type: 'TABLE_NAME_MISSING' | 'EMPTY_QUERY' | 'DATA_PROPERTY_MISSING';
+    type:
+        | 'TABLE_NAME_MISSING'
+        | 'EMPTY_QUERY'
+        | 'DATA_PROPERTY_MISSING'
+        | 'SQL_FILE_NOT_FOUND';
     column?: string;
 };
 
@@ -155,7 +160,7 @@ export type FindQueryParams<M> = {
 };
 
 export type PaginationInput = {
-    page: number;
+    page?: number;
     pageSize?: number;
 };
 
@@ -175,7 +180,7 @@ export type ColumnsInput<M> = ColumnSetParams<M> | ColumnSet<M>;
 // Filters
 export type FilterInput<M> =
     | string
-    | { filter: object; filterSet: FilterSet<M> };
+    | { filter: object | undefined; filterSet: FilterSet<M> };
 export type FilterOperators = keyof typeof filterOperators;
 export type FilterOperatorParams = {
     column: string | number | symbol;

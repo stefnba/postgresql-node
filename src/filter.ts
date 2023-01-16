@@ -92,10 +92,11 @@ export const buildFilters = (
  * Filter string
  */
 export const applyFilter = (
-    filters: object,
+    filters: object | undefined,
     filterSet: FilterSet,
     table?: string
 ): string => {
+    if (!filters) return '';
     const appliedFilters = Object.entries(filters).map(
         ([filterKey, filterValue]) => {
             if (filterKey in filterSet) {
