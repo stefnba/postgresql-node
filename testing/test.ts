@@ -112,6 +112,15 @@ const main = async () => {
         const rank = randomInt(10000);
         const rank2 = randomInt(10000);
 
+        console.log(t.run('SELECT NOW()'));
+        console.log(t.run('SELECT NOW()'));
+        console.log(t.run('SELECT NOW()'));
+        console.log(t.run('SELECT NOW()'));
+        console.log(t.run('SELECT NOW()'));
+        console.log(t.run('SELECT NOW()'));
+        console.log(t.run('SELECT NOW()'));
+        console.log(t.run('SELECT NOW()'));
+
         // const a = await t.run('SELECT * FROM USERS where id =1').oneOrNone();
         await t
             .add({ name: 'd', rank, email: `${rank}@mail.com` }, 'users')
@@ -124,7 +133,9 @@ const main = async () => {
         //     .none();
     });
 
-    console.log(bb);
+    const cc = query.run('SELECT * FROM USERS LIMIT 2');
+
+    console.log(cc);
 };
 
 main();

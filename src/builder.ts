@@ -23,6 +23,7 @@ export default class QueryBuilder<Model = undefined> {
     private client: DatabaseClient | BatchClient;
     private table?: string;
     private options: DatabaseOptions;
+    private isBatch: boolean;
 
     constructor(
         client: DatabaseClient | BatchClient,
@@ -30,10 +31,10 @@ export default class QueryBuilder<Model = undefined> {
         table?: string
     ) {
         this.table = table;
+
+        this.isBatch = client.constructor.name === 'Task' ? true : false;
         this.client = client;
         this.options = options;
-
-        console.log(client);
     }
 
     /**
@@ -54,7 +55,7 @@ export default class QueryBuilder<Model = undefined> {
             { query: pagination.page(params?.pagination), type: 'OFFSET' }
         ]);
 
-        return new Query(this.client.any, _query, {
+        return new Query(this.client.any, this.isBatch, _query, {
             command: 'SELECT',
             table: this.table,
             log: this.options.query
@@ -68,11 +69,16 @@ export default class QueryBuilder<Model = undefined> {
      * @returns
      */
     run(query: QueryInput, params?: object) {
-        return new Query(this.client.any, pgFormat(query, params), {
-            command: 'RUN',
-            log: this.options.query,
-            table: this.table
-        });
+        return new Query(
+            this.client.any,
+            this.isBatch,
+            pgFormat(query, params),
+            {
+                command: 'RUN',
+                log: this.options.query,
+                table: this.table
+            }
+        );
     }
 
     /**
@@ -108,7 +114,7 @@ export default class QueryBuilder<Model = undefined> {
                     typeof params === 'string' ? undefined : params?.returning
             }
         ]);
-        return new Query(this.client.any, query, {
+        return new Query(this.client.any, this.isBatch, query, {
             command: 'INSERT',
             table: this.table,
             log: this.options.query
@@ -141,7 +147,7 @@ export default class QueryBuilder<Model = undefined> {
             },
             { type: 'RETURNING', query: params?.returning }
         ]);
-        return new Query(this.client.any, query, {
+        return new Query(this.client.any, this.isBatch, query, {
             command: 'UPDATE',
             table: this.table,
             log: this.options.query

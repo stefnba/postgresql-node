@@ -21,6 +21,7 @@ export default class Query {
      * Pg-promise method to execute query
      */
     private queryRunner: QueryRunner;
+    isBatch: boolean;
     /**
      * Name of db table if provided
      */
@@ -30,16 +31,16 @@ export default class Query {
 
     constructor(
         queryRunner: QueryRunner,
+        isBatch: boolean,
         query: string,
         params: QueryExecutionParams
     ) {
         this.query = query;
         this.queryRunner = queryRunner;
+        this.isBatch = isBatch;
         this.table = params.table;
         this.command = params.command;
         this.customLog = params.log;
-
-        console.log(queryRunner);
     }
 
     /**

@@ -25,6 +25,7 @@ export default class PostgresBatchQuery {
         callback: BatchQueryCallback
     ): Promise<T> {
         this.isTransaction = true;
+
         return this.db.task(async (t) => {
             const query = this.initQuery(t);
             // BEGIN
