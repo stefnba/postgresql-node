@@ -1,13 +1,13 @@
 import PostgresBatchQuery from './batch';
 import {
-    Database,
+    DatabaseClient,
     DatabaseOptions,
     FindQueryParams,
     AddQueryParams,
     UpdateQueryParams,
     DataInput,
     BatchQueryCallback,
-    TransactionClient,
+    BatchClient,
     QueryInput
 } from './types';
 import Query from './query';
@@ -20,18 +20,20 @@ import { buildFilters } from './filter';
  * Simplifies construction of pg queries.
  */
 export default class QueryBuilder<Model = undefined> {
-    private client: Database | TransactionClient;
+    private client: DatabaseClient | BatchClient;
     private table?: string;
     private options: DatabaseOptions;
 
     constructor(
-        client: Database | TransactionClient,
+        client: DatabaseClient | BatchClient,
         options: DatabaseOptions,
         table?: string
     ) {
         this.table = table;
         this.client = client;
         this.options = options;
+
+        console.log(client);
     }
 
     /**
@@ -79,20 +81,32 @@ export default class QueryBuilder<Model = undefined> {
      * @param params
      * @returns
      */
+    add(data: DataInput, table: string): Query;
     add<M = Model extends undefined ? unknown : Model>(
         data: DataInput,
-        params?: AddQueryParams<Model extends undefined ? M : Model>
+        params: AddQueryParams<Model extends undefined ? M : Model>
+    ): Query;
+    add<M = Model extends undefined ? unknown : Model>(
+        data: DataInput,
+        params?: AddQueryParams<Model extends undefined ? M : Model> | string
     ) {
         const add = buildUpdateInsertQuery(
             'INSERT',
             data,
-            params?.columns,
-            params?.table || this.table
+            typeof params === 'string' ? undefined : params?.columns,
+            typeof params === 'string' ? params : params?.table || this.table
         );
         const query = concatenateQuery([
             add,
-            { type: 'CONFLICT', query: params?.conflict },
-            { type: 'RETURNING', query: params?.returning }
+            {
+                type: 'CONFLICT',
+                query: typeof params === 'string' ? undefined : params?.conflict
+            },
+            {
+                type: 'RETURNING',
+                query:
+                    typeof params === 'string' ? undefined : params?.returning
+            }
         ]);
         return new Query(this.client.any, query, {
             command: 'INSERT',
@@ -140,9 +154,9 @@ export default class QueryBuilder<Model = undefined> {
      * Queries that should be executed.
      * @returns
      */
-    batch(callback: BatchQueryCallback) {
+    batch<T = void>(callback: BatchQueryCallback<T>) {
         const trx = new PostgresBatchQuery(this.client, this.options);
-        return trx.executeBatch(callback);
+        return trx.executeBatch<T>(callback);
     }
 
     /**
@@ -153,8 +167,8 @@ export default class QueryBuilder<Model = undefined> {
      * Queries that should be executed.
      * @returns
      */
-    transaction(callback: BatchQueryCallback) {
+    transaction<T>(callback: BatchQueryCallback<T>) {
         const trx = new PostgresBatchQuery(this.client, this.options);
-        return trx.executeTransaction(callback);
+        return trx.executeTransaction<T>(callback);
     }
 }

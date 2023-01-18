@@ -7,7 +7,7 @@ import type {
     DatabaseConnectionParams,
     DatabaseConnectionStatus,
     RegisteredRepositories,
-    Database,
+    DatabaseClient,
     DatabaseOptions,
     addRepositoriesParams
 } from './types';
@@ -17,7 +17,7 @@ import { applyFilter } from './filter';
 import { ColumnSet } from './column';
 
 export default class PostgresClient {
-    db: Database;
+    db: DatabaseClient;
     readonly query: QueryBuilder;
     private connectionStatus: DatabaseConnectionStatus;
     private options: DatabaseOptions;

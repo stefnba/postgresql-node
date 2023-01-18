@@ -6,14 +6,19 @@ import {
     IBaseProtocol
 } from 'pg-promise';
 
-import { ConnectionError } from './error';
+import {
+    ConnectionError,
+    QueryBuildError,
+    QueryExecutionError,
+    QueryResultError
+} from './error';
 import QueryBuilder from './builder';
 import { filterOperators } from './filter';
 import DatabaseRepository from './repository';
 import { ColumnSet } from './column';
 // import { ColumnSet } from './column';
 
-export type Database = IDatabase<object>;
+export type DatabaseClient = IDatabase<object>;
 
 export type DatabaseConnectionParams = {
     host?: string;
@@ -49,6 +54,13 @@ export type DatabaseOptions = {
     query?: {
         onError?: (error: { message: string }, query: string) => void;
         onReturn?: (result: Array<object> | object, query: string) => void;
+    };
+    transaction?: {
+        onBegin?: () => void;
+        onCommmit?: () => void;
+        onRollback?: (
+            error: QueryBuildError | QueryExecutionError | QueryResultError
+        ) => void;
     };
     noWarnings?: boolean;
 };
@@ -149,7 +161,7 @@ export type BatchQuery = <R>(
     callback: BatchQueryCallback<R>
 ) => unknown | Promise<unknown>;
 
-export type TransactionClient = ITask<object>;
+export type BatchClient = ITask<object>;
 
 export type BatchQueryCallback<R = any> = (t: QueryBuilder) => Promise<R>;
 

@@ -1,5 +1,6 @@
 import DatabaseRepository from '../src/repository';
 import PostgresClient from '../src/client';
+import { randomInt } from 'crypto';
 
 const connection = {
     host: 'localhost',
@@ -81,27 +82,49 @@ class UserRepo extends DatabaseRepository<User> {
 }
 
 const main = async () => {
-    const client = new PostgresClient(connection);
-
-    const a = await client.query.run('SELECT * FROM users').many();
-
-    const b = await client.query
-        .find<User>('SELECT * FROM users', { pagination: { pageSize: 3 } })
-        .many<User>();
-
-    console.log(b);
-
-    const QueryRepo = client.addRepositories({
-        user: UserRepo
+    const client = new PostgresClient(connection, {
+        transaction: {
+            onBegin: () => console.log('BEGIN'),
+            onCommmit: () => console.log('COMMIT'),
+            onRollback: (err) => console.log('ROLLBACK', err)
+        }
     });
 
-    const c = await QueryRepo.user.list();
+    const query = client.query;
 
-    console.log(c);
+    // const a = await client.query.run('SELECT * FROM users').many();
 
-    // client.query.transaction(async (t) => {
-    //     await t.add<User>({ id: 1 }, { columns: ['email'] }).many();
+    // const b = await client.query
+    //     .find<User>('SELECT * FROM users', { pagination: { pageSize: 3 } })
+    //     .many<User>();
+
+    // console.log(b);
+
+    // const QueryRepo = client.addRepositories({
+    //     user: UserRepo
     // });
+
+    // const c = await QueryRepo.user.list();
+
+    // console.log(c);
+
+    const bb = await query.transaction(async (t) => {
+        const rank = randomInt(10000);
+        const rank2 = randomInt(10000);
+
+        // const a = await t.run('SELECT * FROM USERS where id =1').oneOrNone();
+        await t
+            .add({ name: 'd', rank, email: `${rank}@mail.com` }, 'users')
+            .none();
+        // await t
+        //     .add(
+        //         { name: 'd', rank: rank2, email: `${rank2}@mail.com` },
+        //         'users'
+        //     )
+        //     .none();
+    });
+
+    console.log(bb);
 };
 
 main();

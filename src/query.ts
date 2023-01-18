@@ -38,6 +38,8 @@ export default class Query {
         this.table = params.table;
         this.command = params.command;
         this.customLog = params.log;
+
+        console.log(queryRunner);
     }
 
     /**
