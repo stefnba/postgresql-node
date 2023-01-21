@@ -54,6 +54,7 @@ export default class PostgresBatchQuery {
                     } else {
                         throw err;
                     }
+                    return Promise.reject(err);
                 });
         });
     }
