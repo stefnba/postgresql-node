@@ -23,7 +23,7 @@ const db = new PostgresClient(connection, {
 
 describe('ADD', () => {
     it('SHOULD ADD one user record without columns and return nothing', async () => {
-        const rank = randomInt(1000000);
+        const rank = randomInt();
         await db.query
             .add(
                 {
@@ -38,7 +38,7 @@ describe('ADD', () => {
             .none();
     });
     it('SHOULD ADD one user record with columns and return nothing', async () => {
-        const rank = randomInt(1000000);
+        const rank = randomInt();
         await db.query
             .add(
                 {
@@ -54,7 +54,7 @@ describe('ADD', () => {
             .none();
     });
     it('SHOULD ADD one user record with columns and return record', async () => {
-        const rank = randomInt(1000000);
+        const rank = randomInt();
         const r = await db.query
             .add(
                 {
@@ -72,7 +72,7 @@ describe('ADD', () => {
         expect(r).to.have.keys(['id', 'name', 'email', 'rank', 'optional']);
     });
     it('SHOULD ADD one user record with columns and return record with only id, name columns', async () => {
-        const rank = randomInt(1000000);
+        const rank = randomInt();
         const r = await db.query
             .add(
                 {
@@ -89,35 +89,25 @@ describe('ADD', () => {
             .one<UserModel>();
         expect(r).to.have.keys(['id', 'name']);
     });
-    it('SHOULD ADD three user records with columns and return records', async () => {
-        const rank = randomInt(1000000);
+    it('SHOULD ADD 15 user records with columns and return records', async () => {
+        const rank = randomInt();
+
+        const number = 15;
+
+        const data = Array.from(Array(number).keys()).map((i) => ({
+            name: `add-${rank + i}`,
+            email: `${rank + i}@mail.com`,
+            rank: rank + i
+        }));
+
         const r = await db.query
-            .add(
-                [
-                    {
-                        name: `add-${rank + 1}`,
-                        email: `${rank + 1}@mail.com`,
-                        rank: rank + 1
-                    },
-                    {
-                        name: `add-${rank + 2}`,
-                        email: `${rank + 2}@mail.com`,
-                        rank: rank + 2
-                    },
-                    {
-                        name: `add-${rank + 3}`,
-                        email: `${rank + 3}@mail.com`,
-                        rank: rank + 3
-                    }
-                ],
-                {
-                    returning: '*',
-                    columns: ['name', 'email', 'rank'],
-                    table: 'users'
-                }
-            )
+            .add(data, {
+                returning: '*',
+                columns: ['name', 'email', 'rank'],
+                table: 'users'
+            })
             .many<UserModel>();
-        expect(r).to.have.length(3);
+        expect(r).to.have.length(number);
         expect(r[0]).to.have.keys(['id', 'name', 'email', 'rank', 'optional']);
     });
     it('SHOULD THROW QueryBuildError due to missing table', async () => {

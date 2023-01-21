@@ -15,6 +15,9 @@ const db = new PostgresClient(connection, {
 });
 
 describe('SETUP', () => {
+    it('SHOULD DELETE users table', async () => {
+        await db.query.run('DROP TABLE IF EXISTS users').none();
+    });
     it('SHOULD CREATE users table', async () => {
         await db.query
             .run(
