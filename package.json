@@ -13,7 +13,7 @@
         "build": "npm run clean && tsc --build && npm run copy",
         "copy": "copyfiles -u 1 \"src/**/*.d.ts\" \"lib\"",
         "docker": "docker compose -f testing/docker-compose.yml --project-directory . up -d --build --force-recreate",
-        "lint": "tslint -p tsconfig.json",
+        "lint": "eslint -c .eslintrc --ext .ts src",
         "prepare": "npm run build",
         "format": "prettier --write \"src/**/*.ts\" \"lib/**/*.js|ts\"",
         "preversion": "npm run lint",

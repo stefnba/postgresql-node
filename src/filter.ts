@@ -74,6 +74,7 @@ export const filterOperators = {
  * Filter string from applyFilter()
  */
 export const buildFilters = (
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     filter?: FilterInput<any>,
     table?: string
 ): string | undefined => {

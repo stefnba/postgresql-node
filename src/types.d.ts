@@ -168,6 +168,7 @@ export type BatchQuery = <R>(
 
 export type BatchClient = ITask<object>;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type BatchQueryCallback<R = any> = (t: QueryBuilder) => Promise<R>;
 
 export type FindQueryParams<M> = {

@@ -19,6 +19,7 @@ import { ColumnSet } from './column';
 
 export default class PostgresClient {
     db: DatabaseClient;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     repos?: RegisteredRepositories<any>;
     readonly query: QueryBuilder;
     private connectionStatus: DatabaseConnectionStatus;
