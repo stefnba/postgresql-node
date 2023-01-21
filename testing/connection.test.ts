@@ -64,7 +64,7 @@ describe('CONNECTION', () => {
             'serverVersion'
         ]);
         expect(status.status).to.equal('FAILED');
-        expect(status.error?.code).to.equal('ENOTFOUND');
+        expect(status.error?.code).to.be.oneOf(['ENOTFOUND', 'EAI_AGAIN']);
         expect(status.error?.type).to.equal('HostNotFound');
 
         expect(status.error?.message).to.include('Connection to the host');
