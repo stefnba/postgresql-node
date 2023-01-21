@@ -190,28 +190,30 @@ export const buildUpdateInsertQuery = <M>(
 
     try {
         return pgHelpers[_command](data, _columns, table);
-    } catch (err: any) {
-        if (err.message.match(/Property '([a-zA-Z]+)' doesn't exist\./g)) {
-            throw new QueryBuildError({
-                message: err.message,
-                type: 'DATA_PROPERTY_MISSING',
-                table,
-                column: 'rank',
-                command
-            });
-        }
+    } catch (err) {
+        if (err instanceof Error) {
+            if (err.message.match(/Property '([a-zA-Z]+)' doesn't exist\./g)) {
+                throw new QueryBuildError({
+                    message: err.message,
+                    type: 'DATA_PROPERTY_MISSING',
+                    table,
+                    column: 'rank',
+                    command
+                });
+            }
 
-        if (
-            err.message ===
-            "Parameter 'columns' is required when updating multiple records."
-        ) {
-            throw new QueryBuildError({
-                message: err.message,
-                type: 'COLUMNS_MISSING',
-                table,
-                column: 'rank',
-                command
-            });
+            if (
+                err.message ===
+                "Parameter 'columns' is required when updating multiple records."
+            ) {
+                throw new QueryBuildError({
+                    message: err.message,
+                    type: 'COLUMNS_MISSING',
+                    table,
+                    column: 'rank',
+                    command
+                });
+            }
         }
 
         console.log('dddd', err);
