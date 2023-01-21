@@ -1,96 +1,148 @@
-import dotenv from 'dotenv';
-
-import PostgresClient from '../src';
-
-dotenv.config();
+import DatabaseRepository from '../src/repository';
+import PostgresClient from '../src/client';
+import { randomInt } from 'crypto';
+import { Client } from 'pg';
 
 const connection = {
-    host: process.env.DB_HOST,
-    port: Number(process.env.DB_PORT),
-    database: process.env.DB_NAME,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    max: 30
+    host: 'localhost',
+    port: 5413,
+    user: 'admin',
+    password: 'password',
+    database: 'app_db'
 };
 
-type UserModel = {
+export type User = {
     id: number;
     name: string;
     email: string;
+    rank: number;
+};
+export type Product = {
+    id: number;
+    product: string;
 };
 
-const db = new PostgresClient(connection);
+export type Tables = 'users';
 
-// NORMAL QUERY
-const q = db.query;
+class UserRepo extends DatabaseRepository<User> {
+    table = 'users';
+    sqlFilesDir = [__dirname, 'db/queryFiles'];
 
-// QUERY SUITE
-const userQuerySuite = db.newQuerySuite<UserModel>('users');
-
-const cs = userQuerySuite.config.columnSets({
-    update: ['id', 'name', 'email', { name: 'email', optional: false }],
-    create: ['email', 'id', 'name']
-});
-
-const queries = userQuerySuite.config.querySets(
-    {
-        test: 'test.sql'
-    },
-    [__dirname, 'db/queryFiles']
-);
-
-const filters = userQuerySuite.config.filterSets({
-    id: { column: 'id', operator: 'EQUAL' },
-    email: { column: 'name', operator: 'INCLUDES', alias: 'users' },
-    rank: 'EQUAL'
-});
-
-const run = async () => {
-    const queryPortfolio = {
-        list: () =>
-            userQuerySuite.query.findMany<UserModel>({
-                query: queries.test,
-                filter: filters({ id: 9569721 })
-            }),
-        create: (data: Pick<UserModel, 'email' | 'name' | 'id'>) =>
-            userQuerySuite.query.createOne<UserModel>({
-                data,
-                columns: cs.create,
-                returning: '*',
-                conflict: 'DO NOTHING'
-            })
+    private filters = this.filterSet({ id: 'INCLUDES' });
+    private queries = {
+        get: this.sqlFile('test.sql'),
+        a: this.sqlFile('test.sql')
     };
+    private columns = { add: this.columnSet(['name', 'name', 'rank']) };
 
-    const c = await queryPortfolio.create({
-        id: 12321321,
-        name: 'testMan',
-        email: 'tests@klajsdfklasdflk.com'
-    });
-    const l = await queryPortfolio.list();
+    add(data: object) {
+        const columns = this.columnSet(['id', 'name']);
+        return this.query
+            .add(data, {
+                returning: '*',
+                columns: ['email']
+            })
+            .one<User>();
+    }
 
-    console.log(l);
-    console.log(c);
+    update(data: object, id: number) {
+        const columns = this.columnSet(['email']);
+        const filter = this.applyFilter({ id }, { id: 'EQUAL' });
+        return this.query
+            .update(data, {
+                columns: [{ name: 'email', optional: true }],
+                filter
+            })
+            .one<User>();
+    }
 
-    const a = await db.query.createOne<UserModel>({
-        data: {
-            id: 123213291,
-            name: 'testMan',
-            email: 'tests@klajsdfklasdflk.com'
-        },
-        columns: ['id', 'name', 'email'],
-        table: 'users'
+    retrieve(id: number) {
+        return this.query
+            .find('SELECT * FROM users WHERE id = $<id>', {
+                params: { id }
+            })
+            .one<User>();
+    }
+
+    list(filters?: { id: Array<number> }) {
+        return this.query
+            .find(this.queries.get, {
+                filter: {
+                    filter: filters,
+                    filterSet: { id: { column: 'email', operator: 'EQUAL' } }
+                },
+                pagination: { pageSize: 3 }
+            })
+            .many<User>();
+        // return this.query
+        //     .find(this.queries.get, {
+        //         filter: this.applyFilter(filters, this.filters)
+        //     })
+        //     .many();
+    }
+}
+
+const main = async () => {
+    const client = new PostgresClient(connection, {
+        transaction: {
+            onBegin: () => console.log('BEGIN'),
+            onCommmit: () => console.log('COMMIT'),
+            onRollback: (err) => console.log('ROLLBACK', err)
+        }
     });
-    const aa = await db.query.createOne<UserModel>({
-        data: {
-            id: 123213934,
-            name: 'testMan',
-            email: 'tests@klajsdfklasdflk.com'
-        },
-        columns: ['name', 'email', { name: 'id', optional: true }],
-        // columns: ['id', { name: 'name', optional: true }, 'email'],
-        table: 'users'
+
+    const db = client.addRepositories({
+        user: UserRepo
     });
-    // await db.query.createMany<UserModel>({data: [{}], columns: [] })
+
+    // const db: PostgresClient & typeof QueryRepo = client;
+
+    await db.query
+        .run(
+            'CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, name varchar(255), email varchar(255) NOT NULL, rank int UNIQUE);'
+        )
+        .none();
+
+    // const a = await client.query.run('SELECT * FROM users').many();
+
+    // const b = await client.query
+    //     .find<User>('SELECT * FROM users', { pagination: { pageSize: 3 } })
+    //     .many<User>();
+
+    // console.log(b);
+
+    // const c = await QueryRepo.user.list();
+
+    // console.log(c);
+
+    const bb = await db.query.transaction(async (t) => {
+        const rank = randomInt(10000);
+        const rank2 = randomInt(10000);
+
+        console.log(t.run('SELECT NOW()'));
+        console.log(t.run('SELECT NOW()'));
+        console.log(t.run('SELECT NOW()'));
+        console.log(t.run('SELECT NOW()'));
+        console.log(t.run('SELECT NOW()'));
+        console.log(t.run('SELECT NOW()'));
+        console.log(t.run('SELECT NOW()'));
+        console.log(t.run('SELECT NOW()'));
+
+        // const a = await t.run('SELECT * FROM USERS where id =1').oneOrNone();
+        await t
+            .add({ name: 'd', rank, email: `${rank}@mail.com` }, 'users')
+            .none();
+        // await t
+        //     .add(
+        //         { name: 'd', rank: rank2, email: `${rank2}@mail.com` },
+        //         'users'
+        //     )
+        //     .none();
+    });
+
+    const cc = db.query.run('SELECT * FROM USERS LIMIT 2');
+
+    console.log(cc);
 };
 
-run();
+main();

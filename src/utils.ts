@@ -1,25 +1,32 @@
 import pgPromise, { QueryFile } from 'pg-promise';
 
 import type {
-    QueryInputFormat,
-    ChainQueryObject,
-    QueryClauses,
-    ColumnSet
+    QueryInput,
+    QueryConcatenationParams,
+    QueryInserUpdateCommands,
+    ColumnsInput
 } from './types';
+import { QueryBuildError } from './error';
+import { ColumnSet } from './column';
 
+/**
+ * Helpers for query building, e.g. insert, update
+ */
 export const pgHelpers = pgPromise().helpers;
 
 /**
- * Format, espaces and integrates parameters into query
+ * Formats, espaces and integrates parameters into query
  */
 export const pgFormat = pgPromise().as.format;
 
 /**
  * Convers QueryInput (e.g. QueryFile) to string
- * @param qf input query, can either be string or QueryFile
- * @returns Query as string
+ * @param qf
+ * Query, can either be string or QueryFile
+ * @returns
+ * Query converted to string
  */
-export const queryToString = (qf: QueryInputFormat): string => {
+export const queryToString = (qf: QueryInput): string => {
     if (qf instanceof QueryFile) {
         return pgFormat(qf);
     }
@@ -27,105 +34,186 @@ export const queryToString = (qf: QueryInputFormat): string => {
 };
 
 /**
- * Check if query already contains clause; relevant for chaining to work
- * @param q Query
- * @param clause Relevant clause, e.g. WHERE, RETURNING, CONFLICHT
- * @returns true or false
+ * Checks if query includes certain clauses, e.g. WHERE, RETURNING, to avoid errors
+ * @param query string
+ * String that will be checked if clause exists
+ * @param clause string
+ *
+ * @returns
  */
-export const QueryIncludesClause = (
-    q: QueryInputFormat,
-    clause: QueryClauses
-): boolean => {
-    const query = queryToString(q);
-
+export function queryIncludesClause(query: string, clause: string) {
     if (query.toLowerCase().includes(clause.toLowerCase())) return true;
     return false;
-};
+}
 
 /**
- * Concatenates different parts of query into a single query statement
- * @param queryParts either string (QueryFile not possible) or object
+ * Concatenate different parts of query and determined if certain clauses, operators need to be inserted
+ * @param parts Array of string|QueryFile|object
+ * - string
+ * - QueryFile
+ * - object with keys: type, query
+ * @returns string
+ * Final query with all parts concatenated
  */
-export const chainQueryParts = (
-    queryParts: Array<string | ChainQueryObject>
-): string => {
-    let chainQuery = '';
+export function concatenateQuery(parts: QueryConcatenationParams): string {
+    let fullQuery = '';
 
-    queryParts.forEach((queryPart) => {
+    parts.forEach((part) => {
+        if (!part) {
+            return;
+        }
         // normal string, QueryFile no longer possible here
-        if (typeof queryPart === 'string') {
-            chainQuery += ` ${queryPart}`;
+        if (typeof part === 'string') {
+            fullQuery += ` ${part}`;
+            return;
+        }
+        // QueryFile
+        if (part instanceof QueryFile) {
+            fullQuery += ` ${pgFormat(part)}`;
             return;
         }
 
-        const { query, type } = queryPart;
-        if (query === undefined) return;
+        // object
+        const { query: q, type } = part;
+
+        // return if undefined or empty
+        if (q === undefined || queryToString(q).trim() === '') return;
+        const query = pgFormat(q);
+
         if (type === 'RETURNING') {
-            if (QueryIncludesClause(chainQuery, type)) {
-                chainQuery += ` ${query}`;
-            } else {
-                chainQuery += ` RETURNING ${query}`;
+            const clause = 'RETURNING';
+            if (
+                queryIncludesClause(fullQuery, clause) ||
+                queryIncludesClause(query, clause)
+            ) {
+                fullQuery += ` ${query}`;
+                return;
             }
+            fullQuery += ` ${clause} ${query}`;
             return;
         }
-
         if (type === 'WHERE') {
-            if (QueryIncludesClause(chainQuery, type)) {
-                chainQuery += ` AND ${query}`;
-            } else {
-                chainQuery += ` WHERE ${query}`;
+            const clause = 'WHERE';
+            if (
+                queryIncludesClause(fullQuery, clause) ||
+                queryIncludesClause(query, clause)
+            ) {
+                fullQuery += ` AND ${query}`;
+                return;
             }
+            fullQuery += ` ${clause} ${query}`;
             return;
         }
-
         if (type === 'CONFLICT') {
-            chainQuery += `ON CONFLICT ${query}`;
+            const clause = 'ON CONFLICT';
+            if (
+                queryIncludesClause(fullQuery, clause) ||
+                queryIncludesClause(query, clause)
+            ) {
+                fullQuery += ` ${query}`;
+                return;
+            }
+            fullQuery += ` ${clause} ${query}`;
             return;
         }
-
         if (type === 'LIMIT') {
-            chainQuery += ` ${query}`;
+            const clause = 'LIMIT';
+            if (
+                queryIncludesClause(fullQuery, clause) ||
+                queryIncludesClause(query, clause)
+            ) {
+                fullQuery += ` ${query}`;
+                return;
+            }
+            fullQuery += ` ${clause} ${query}`;
             return;
         }
-
         if (type === 'OFFSET') {
-            chainQuery += ` ${query}`;
+            const clause = 'OFFSET';
+            if (
+                queryIncludesClause(fullQuery, clause) ||
+                queryIncludesClause(query, clause)
+            ) {
+                fullQuery += ` ${query}`;
+                return;
+            }
+            fullQuery += ` ${clause} ${query}`;
+            return;
+        }
+        if (type === 'ORDER') {
+            const clause = 'ORDER BY';
+            if (
+                queryIncludesClause(fullQuery, clause) ||
+                queryIncludesClause(query, clause)
+            ) {
+                fullQuery += ` ${query}`;
+                return;
+            }
+            fullQuery += ` ${clause} ${query}`;
             return;
         }
     });
-    return chainQuery;
-};
+    return fullQuery.trim();
+}
 
-export const buildColumnSet = (
-    columns: ColumnSet,
-    table: string | undefined = undefined
+/**
+ * Simplifies INSERT or UPDATE query building based on inputs
+ * @param command
+ * Decides if INSERT or UPDATE to be built
+ * @param data
+ * Data input
+ * @param columns
+ * @param table
+ * Table name
+ * @returns
+ */
+export const buildUpdateInsertQuery = <M>(
+    command: QueryInserUpdateCommands,
+    data: object,
+    columns?: ColumnsInput<M>,
+    table?: string
 ) => {
-    return new pgHelpers.ColumnSet(
-        columns.map((col) => {
-            if (typeof col === 'string') {
-                // make optional if ? is provided in column name
-                if (col.endsWith('?')) {
-                    return {
-                        name: col.replace('?', ''),
-                        skip: (a: any) => !a.exists
-                    };
-                }
-                return col;
-            }
-            if (typeof col === 'object' && 'optional' in col) {
-                const { optional, ...rest } = col as { optional: boolean };
-                if (optional) {
-                    return {
-                        ...rest,
-                        skip: (a: any) => !a.exists
-                    };
-                }
-                return rest;
-            }
-            return col;
-        }),
-        {
-            table: table
+    if (!table) {
+        throw new QueryBuildError({
+            message: 'A table name is required',
+            type: 'TABLE_NAME_MISSING',
+            command
+        });
+    }
+
+    const _command = command === 'INSERT' ? 'insert' : 'update';
+    const _columns = columns
+        ? columns instanceof ColumnSet
+            ? columns
+            : new ColumnSet(columns)
+        : null;
+
+    try {
+        return pgHelpers[_command](data, _columns, table);
+    } catch (err: any) {
+        if (err.message.match(/Property '([a-zA-Z]+)' doesn't exist\./g)) {
+            throw new QueryBuildError({
+                message: err.message,
+                type: 'DATA_PROPERTY_MISSING',
+                table,
+                column: 'rank',
+                command
+            });
         }
-    );
+
+        if (
+            err.message ===
+            "Parameter 'columns' is required when updating multiple records."
+        ) {
+            throw new QueryBuildError({
+                message: err.message,
+                type: 'COLUMNS_MISSING',
+                table,
+                column: 'rank',
+                command
+            });
+        }
+
+        console.log('dddd', err);
+    }
 };

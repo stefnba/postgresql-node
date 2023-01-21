@@ -1,311 +1,187 @@
-import { IDatabase } from 'pg-promise';
-import pg from 'pg-promise/typescript/pg-subset';
-
-import { chainQueryParts, pgFormat, pgHelpers, buildColumnSet } from './utils';
-import type {
-    QueryInputFormat,
-    FindOneQueryParams,
-    FindManyQueryParams,
-    QueryCommands,
-    QueryReturnMode,
-    CustomQueryError,
-    CreateOneQueryParams,
-    UpdateOneQueryParams,
-    UpdateManyQueryParams,
-    CreateManyQueryParams,
-    QueryErrorArgs,
-    QueryInitConfig
+import {
+    DatabaseOptions,
+    QueryExecutionCommands,
+    QueryRunner,
+    QueryExecutionParams
 } from './types';
-import QueryError from './errors';
-import { QueryErrorCodes } from './constants';
-import pagination from './pagination';
 
-export default class PostgresQuery {
-    private client: IDatabase<Record<string, unknown>, pg.IClient>;
-    private customQueryError: CustomQueryError | undefined;
-    private table: string | undefined;
+import {
+    QueryBuildError,
+    QueryExecutionError,
+    QueryResultError
+} from './error';
 
-    task: typeof this.client.task;
-    transaction: typeof this.client.tx;
+export default class Query {
+    private result?: object | object[];
+    /**
+     * Query string that was provided or built
+     */
+    private query: string;
+    /**
+     * Pg-promise method to execute query
+     */
+    private queryRunner: QueryRunner;
+    isBatch: boolean;
+    /**
+     * Name of db table if provided
+     */
+    private table?: string;
+    private command?: QueryExecutionCommands;
+    private customLog?: DatabaseOptions['query'];
 
     constructor(
-        client: IDatabase<Record<string, unknown>, pg.IClient>,
-        config: QueryInitConfig
-    ) {
-        this.table = config.table;
-        this.client = client;
-        this.customQueryError = config.queryError;
-
-        // transactions and tasks
-        this.task = this.client.task;
-        this.transaction = this.client.tx;
-    }
-
-    /**
-     * Run a SELECT query that returns a single record
-     */
-    async findOne<R>(params: FindOneQueryParams): Promise<R> {
-        const queryString = pgFormat(params.query, params.params);
-        const q = chainQueryParts([
-            queryString,
-            { type: 'WHERE', query: params.filter }
-        ]);
-        return this.execute(q, 'ONE', 'SELECT');
-    }
-
-    /**
-     * Run a SELECT query that returns multiple record
-     */
-    async findMany<R>(params: FindManyQueryParams): Promise<R[]> {
-        const queryString = pgFormat(params.query, params.params);
-        const q = chainQueryParts([
-            queryString,
-            { type: 'WHERE', query: params.filter },
-            { type: 'LIMIT', query: pagination.pageSize(params.pagination) },
-            { type: 'OFFSET', query: pagination.page(params.pagination) }
-        ]);
-        return this.execute(q, 'MANY', 'SELECT');
-    }
-
-    /**
-     * Run a UPDATE query that changes a single record
-     */
-    async updateOne<R>(params: UpdateOneQueryParams): Promise<R> {
-        const command = 'UPDATE';
-        const table = params.table || this.table;
-
-        // todo table empty error
-
-        const updateQueryString = pgHelpers.update(
-            params.data,
-            buildColumnSet(params.columns, table),
-            table,
-            {
-                emptyUpdate: null
-            }
-        );
-
-        if (!updateQueryString) {
-            this.throwError({
-                code: QueryErrorCodes.NoUpdateColumns,
-                message: 'No columns for updating were provided',
-                command,
-                table,
-                query: ''
-            });
-        }
-
-        const q = chainQueryParts([
-            updateQueryString,
-            { type: 'WHERE', query: params.filter },
-            { type: 'RETURNING', query: params.returning }
-        ]);
-
-        return this.execute(q, 'ONE', command, table);
-    }
-
-    /**
-     * Run a UPDATE query that changes multiple records
-     */
-    async updateMany<R>(params: UpdateManyQueryParams): Promise<R[]> {
-        const command = 'UPDATE';
-        const table = params.table || this.table;
-
-        // todo table empty error
-
-        const updateQueryString = pgHelpers.update(
-            params.data,
-            buildColumnSet(params.columns, table),
-            table,
-            {
-                emptyUpdate: null
-            }
-        );
-
-        if (!updateQueryString) {
-            this.throwError({
-                code: QueryErrorCodes.NoUpdateColumns,
-                message: 'No columns for updating were provided',
-                command,
-                table,
-                query: ''
-            });
-        }
-
-        const q = chainQueryParts([
-            updateQueryString,
-            { type: 'WHERE', query: params.filter },
-            { type: 'RETURNING', query: params.returning }
-        ]);
-
-        return this.execute(q, 'MANY', command, table);
-    }
-
-    /**
-     * Run a CREATE query
-     */
-    async createOne<R>(params: CreateOneQueryParams): Promise<R> {
-        const command = 'CREATE';
-        const table = params.table || this.table;
-
-        // todo table empty error
-
-        const createQueryString = pgHelpers.insert(
-            params.data,
-            buildColumnSet(params.columns, table),
-            table
-        );
-
-        if (!createQueryString) {
-            throw Error('No columns for creating were provided!');
-        }
-
-        const q = chainQueryParts([
-            createQueryString,
-            { type: 'CONFLICT', query: params.conflict },
-            { type: 'RETURNING', query: params.returning }
-        ]);
-
-        return this.execute(q, 'ONE', command, table);
-    }
-
-    /**
-     * Run a CREATE query that creates multiple records
-     */
-    async createMany<R>(params: CreateManyQueryParams): Promise<R[]> {
-        const command = 'CREATE';
-        const table = params.table || this.table;
-
-        // todo table empty error
-
-        const createQueryString = pgHelpers.insert(
-            params.data,
-            buildColumnSet(params.columns, table),
-            table
-        );
-
-        if (!createQueryString) {
-            throw Error('No columns for creating were provided!');
-        }
-
-        const q = chainQueryParts([
-            createQueryString,
-            { type: 'CONFLICT', query: params.conflict },
-            { type: 'RETURNING', query: params.returning }
-        ]);
-
-        return this.execute(q, 'ANY', command, table);
-    }
-
-    /**
-     * Executes any query
-     */
-    async run<R>(
-        query: QueryInputFormat,
-        params: Record<string, unknown> = {},
-        mode: QueryReturnMode = 'ONE'
-    ): Promise<R> {
-        const queryString = pgFormat(query, params);
-        return this.execute(queryString, mode);
-    }
-
-    /**
-     * Central method that executes all queries
-     */
-    private async execute(
+        queryRunner: QueryRunner,
+        isBatch: boolean,
         query: string,
-        queryReturnMode: QueryReturnMode,
-        queryCommand: QueryCommands | undefined = undefined,
-        table: string | undefined = undefined
+        params: QueryExecutionParams
     ) {
-        if (!query || query.trim() === '') {
-            return this.throwError({
-                command: queryCommand,
-                query,
-                table,
-                code: QueryErrorCodes.EmptyQuery,
-                message: 'An empty query was provided'
+        this.query = query;
+        this.queryRunner = queryRunner;
+        this.isBatch = isBatch;
+        this.table = params.table;
+        this.command = params.command;
+        this.customLog = params.log;
+    }
+
+    /**
+     * Executes query and returns none db record or throws Error
+     * @returns
+     * One db record or null
+     */
+    async one<R>(): Promise<R> {
+        const result = await this.getResult();
+
+        if (result.length === 0 || !result) {
+            throw new QueryResultError({
+                table: this.table,
+                command: this.command,
+                type: 'RECORD_NOT_FOUND',
+                message: 'Record does not exist',
+                query: this.query
+            });
+        }
+        if (result.length > 1) {
+            throw new QueryResultError({
+                table: this.table,
+                command: this.command,
+                type: 'ONE_RECORD_VIOLATION',
+                message: 'Multiple records not allowed',
+                query: this.query
+            });
+        }
+        return result[0];
+    }
+
+    /**
+     * Executes query and returns either none db record or none
+     * @returns
+     * One db record or null
+     */
+    async oneOrNone<R>(): Promise<R | null> {
+        const result = await this.getResult();
+
+        if (result.length > 1) {
+            throw new QueryResultError({
+                table: this.table,
+                command: this.command,
+                type: 'ONE_RECORD_VIOLATION',
+                message: 'Multiple records not allowed',
+                query: this.query
+            });
+        }
+        if (result.length === 0 || !result) {
+            return null;
+        }
+        return result[0];
+    }
+
+    /**
+     * Executes query and returns either many records or none
+     * @returns
+     * Array of db records
+     */
+    manyOrNone<R>(): Promise<R[] | undefined> {
+        return this.getResult();
+    }
+
+    /**
+     * Executes query and returns many db records or throw Error if none were found
+     * @returns
+     * Array of db records or Error
+     */
+    async many<R>(): Promise<R[]> {
+        const result = await this.getResult();
+        if (result.length === 0 || !result) {
+            throw new QueryResultError({
+                table: this.table,
+                command: this.command,
+                type: 'RECORD_NOT_FOUND',
+                message: 'Record does not exist',
+                query: this.query
+            });
+        }
+        return result;
+    }
+
+    /**
+     * Executes query but does not return any records
+     */
+    async none(): Promise<void> {
+        await this.getResult();
+    }
+
+    /**
+     * Decides whether to execute query or used cached results from previously executed query
+     * @returns Array<object> | object
+     * Result, either
+     */
+    private async getResult() {
+        if (this.result) return this.result;
+        const result = await this.execute();
+        this.result = result;
+        return result;
+    }
+
+    /**
+     * Triggers query runner to execute query and return results.
+     * Also handle errors
+     * @returns
+     * Result from query
+     */
+    private async execute() {
+        if (!this.query || this.query.trim() === '') {
+            throw new QueryBuildError({
+                message: 'Query cannot be empty',
+                type: 'EMPTY_QUERY',
+                query: this.query,
+                command: this.command
             });
         }
 
-        return this.client
-            .any(query)
-            .then((res) => {
-                // console.log(query, queryReturnMode, res);
-                if (Array.isArray(res) && queryReturnMode === 'ONE') {
-                    // not results found
-                    if (res.length === 0) {
-                        return null;
-                    }
-                    // return single record as object, not array
-                    if (res.length === 1) {
-                        return res[0];
-                    }
-                    // Multiple rows error
-                    return this.throwError({
-                        command: queryCommand,
-                        query,
-                        table,
-                        code: QueryErrorCodes.MultipleRowsReturned,
-                        message:
-                            "Multiple rows were not expected for query return mode 'ONE'"
-                    });
+        // console.log('executed');
+        return this.queryRunner(this.query)
+            .then((r) => {
+                if (this.customLog?.onReturn) {
+                    this.customLog?.onReturn(r, this.query);
                 }
-                return res;
+                return r;
             })
             .catch((err) => {
-                // Constraint error, e.g. unique constraint
-                if ('constraint' in err && err.constraint) {
-                    return this.throwError({
-                        table,
-                        command: queryCommand,
+                if (this.customLog?.onError) {
+                    this.customLog?.onError(
+                        { message: err.message },
+                        this.query
+                    );
+                } else {
+                    throw new QueryExecutionError({
+                        command: this.command,
                         message: err.message,
-                        query: query,
-                        cause: err,
-                        hint: `constraint ${err.constraint}: ${err.detail}`,
-                        code: QueryErrorCodes.ConstraintViolation
+                        query: this.query,
+                        table: this.table,
+                        cause: err
                     });
                 }
-
-                //
-                if (err.message.includes('violates not-null constraint')) {
-                    return this.throwError({
-                        table,
-                        command: queryCommand,
-                        message: err.message,
-                        query: query,
-                        cause: err,
-                        hint: `not-null constraint in column "${err.column}"`,
-                        code: QueryErrorCodes.ConstraintViolation
-                    });
-                }
-
-                // prevent double error from MultipleRowsReturned
-                if (err instanceof QueryError) throw err;
-
-                // Generic error
-                return this.throwError({
-                    table,
-                    command: queryCommand,
-                    hint: err.hint,
-                    position: err.position,
-                    code: QueryErrorCodes.ExecutionError,
-                    message: err.message,
-                    query: query,
-                    cause: err
-                });
+                return err;
             });
-    }
-
-    /**
-     * Throws QueryError directly or customQueryError if method is provided upon setup
-     * @param options
-     * @returns
-     */
-    private throwError(options: QueryErrorArgs) {
-        if (this.customQueryError) {
-            return this.customQueryError(options);
-        }
-        throw new QueryError(options);
     }
 }

@@ -2,7 +2,7 @@
     "extension": [
         "ts"
     ],
-    "spec": "./testing/**/*.test.ts",
+    "spec": "./testing/index.test.ts",
     "require": "ts-node/register",
     "recursive": true
 }
