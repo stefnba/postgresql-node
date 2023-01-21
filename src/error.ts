@@ -110,7 +110,8 @@ export class ConnectionError extends Error {
 
         this.code = cause.code;
         if (cause.code) {
-            if (cause.code === 'ENOTFOUND') this.hostNotFound();
+            if (cause.code === 'ENOTFOUND' || cause.code === 'EAI_AGAIN')
+                this.hostNotFound();
             if (cause.code === 'ECONNREFUSED') this.PortNotResponding();
             if (cause.code === '3D000') this.dbNotFound();
             if (cause.code === '28P01') this.authFailed();
