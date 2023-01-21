@@ -69,7 +69,7 @@ describe('ADD', () => {
                 }
             )
             .one<UserModel>();
-        expect(r).to.have.keys(['id', 'name', 'email', 'rank']);
+        expect(r).to.have.keys(['id', 'name', 'email', 'rank', 'optional']);
     });
     it('SHOULD ADD one user record with columns and return record with only id, name columns', async () => {
         const rank = randomInt(1000000);
@@ -118,7 +118,7 @@ describe('ADD', () => {
             )
             .many<UserModel>();
         expect(r).to.have.length(3);
-        expect(r[0]).to.have.keys(['id', 'name', 'email', 'rank']);
+        expect(r[0]).to.have.keys(['id', 'name', 'email', 'rank', 'optional']);
     });
     it('SHOULD THROW QueryBuildError due to missing table', async () => {
         const rank = randomInt(1000000);

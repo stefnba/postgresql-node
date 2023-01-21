@@ -12,7 +12,7 @@ chai.use(chaiAsPromised);
 
 let db: PostgresClient;
 
-describe('SETUP', () => {
+describe('CONNECTION', () => {
     it('SHOULD CONNECT to database with connect method', async () => {
         db = new PostgresClient(connection, {
             connect: { testOnInit: false, log: false },

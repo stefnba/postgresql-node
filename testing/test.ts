@@ -92,6 +92,12 @@ const main = async () => {
 
     const query = client.query;
 
+    await query
+        .run(
+            'CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, name varchar(255), email varchar(255) NOT NULL, rank int UNIQUE);'
+        )
+        .none();
+
     // const a = await client.query.run('SELECT * FROM users').many();
 
     // const b = await client.query

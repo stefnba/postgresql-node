@@ -59,12 +59,12 @@ describe('REPO', () => {
         const r = await DatabaseRepos.user.list();
 
         expect(r).to.be.an('array');
-        expect(r[0]).to.have.keys(['id', 'name', 'email', 'rank']);
+        expect(r[0]).to.have.keys(['id', 'name', 'email', 'rank', 'optional']);
     });
     it('SHOULD RETRIEVE a user record', async () => {
         const r = await DatabaseRepos.user.retrieve({ id: 5 });
 
-        expect(r).to.have.keys(['id', 'name', 'email', 'rank']);
+        expect(r).to.have.keys(['id', 'name', 'email', 'rank', 'optional']);
         expect(r.id).to.equal(5);
     });
     it('SHOULD COUNT user records', async () => {
@@ -80,6 +80,6 @@ describe('REPO', () => {
             rank
         });
 
-        expect(r).to.have.keys(['id', 'name', 'email', 'rank']);
+        expect(r).to.have.keys(['id', 'name', 'email', 'rank', 'optional']);
     });
 });
