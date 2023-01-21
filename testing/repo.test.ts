@@ -50,31 +50,31 @@ class UserRepo extends DatabaseRepository<UserModel> {
     }
 }
 
-const DatabaseRepos = dbClient.addRepositories({
+const db = dbClient.addRepositories({
     user: UserRepo
 });
 
 describe('REPO', () => {
     it('SHOULD LIST users records', async () => {
-        const r = await DatabaseRepos.user.list();
+        const r = await db.repos.user.list();
 
         expect(r).to.be.an('array');
         expect(r[0]).to.have.keys(['id', 'name', 'email', 'rank', 'optional']);
     });
     it('SHOULD RETRIEVE a user record', async () => {
-        const r = await DatabaseRepos.user.retrieve({ id: 5 });
+        const r = await db.repos.user.retrieve({ id: 5 });
 
         expect(r).to.have.keys(['id', 'name', 'email', 'rank', 'optional']);
         expect(r.id).to.equal(5);
     });
     it('SHOULD COUNT user records', async () => {
-        const r = await DatabaseRepos.user.total();
+        const r = await db.repos.user.total();
 
         expect(r).to.have.keys(['count']);
     });
     it('SHOULD ADD a user record', async () => {
         const rank = randomInt();
-        const r = await DatabaseRepos.user.add({
+        const r = await db.repos.user.add({
             name: `add-${rank}`,
             email: `${rank}@mail.com`,
             rank

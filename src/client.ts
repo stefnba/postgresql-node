@@ -9,7 +9,8 @@ import type {
     RegisteredRepositories,
     DatabaseClient,
     DatabaseOptions,
-    addRepositoriesParams
+    RepositoriesParams,
+    DatabaseClientExtended
 } from './types';
 import { ConnectionError } from './error';
 import { sqlFile } from './queryFile';
@@ -18,6 +19,7 @@ import { ColumnSet } from './column';
 
 export default class PostgresClient {
     db: DatabaseClient;
+    repos?: RegisteredRepositories<any>;
     readonly query: QueryBuilder;
     private connectionStatus: DatabaseConnectionStatus;
     private options: DatabaseOptions;
@@ -160,22 +162,29 @@ export default class PostgresClient {
      * @param databaseRespos
      * Respositories as key-value pairs
      * @returns
-     * Instantiated respositories
+     * Extended DatabaseClient with initialized Repositories for this.repo property
      */
-    addRepositories<T extends addRepositoriesParams>(
+    addRepositories<T extends RepositoriesParams>(
         databaseRespos: T
-    ): RegisteredRepositories<T> {
-        return Object.entries(databaseRespos).reduce((acc, [key, Repo]) => {
-            const repo = new Repo();
+    ): DatabaseClientExtended<T> {
+        const repos = Object.entries(databaseRespos).reduce(
+            (acc, [key, Repo]) => {
+                const repo = new Repo();
 
-            // attach query
-            repo.query = this.queryInit(repo.table);
+                // attach query
+                repo.query = this.queryInit(repo.table);
 
-            return {
-                ...acc,
-                [key]: repo
-            };
-        }, {}) as RegisteredRepositories<T>;
+                return {
+                    ...acc,
+                    [key]: repo
+                };
+            },
+            {}
+        ) as RegisteredRepositories<T>;
+
+        this.repos = repos;
+
+        return this as DatabaseClientExtended<T>;
     }
 
     /**

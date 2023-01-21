@@ -16,9 +16,13 @@ import QueryBuilder from './builder';
 import { filterOperators } from './filter';
 import DatabaseRepository from './repository';
 import { ColumnSet } from './column';
-// import { ColumnSet } from './column';
+import PostgresClient from './client';
 
 export type DatabaseClient = IDatabase<object>;
+export type DatabaseClientExtended<T extends RepositoriesParams> =
+    PostgresClient & {
+        repos: RegisteredRepositories<T>;
+    };
 
 export type DatabaseConnectionParams = {
     host?: string;
@@ -67,12 +71,12 @@ export type DatabaseOptions = {
 
 // Repositories
 
-export type addRepositoriesParams = Record<
+export type RepositoriesParams = Record<
     string,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     typeof DatabaseRepository<any>
 >;
-export type RegisteredRepositories<R extends addRepositoriesParams> = {
+export type RegisteredRepositories<R extends RepositoriesParams> = {
     [Key in keyof R]: Repository<InstanceType<R[Key]>>;
 };
 export type Repository<R> = Omit<R, 'table' | 'query' | 'sqlFilesDir'>;

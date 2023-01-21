@@ -1,6 +1,7 @@
 import DatabaseRepository from '../src/repository';
 import PostgresClient from '../src/client';
 import { randomInt } from 'crypto';
+import { Client } from 'pg';
 
 const connection = {
     host: 'localhost',
@@ -90,9 +91,13 @@ const main = async () => {
         }
     });
 
-    const query = client.query;
+    const db = client.addRepositories({
+        user: UserRepo
+    });
 
-    await query
+    // const db: PostgresClient & typeof QueryRepo = client;
+
+    await db.query
         .run(
             'CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, name varchar(255), email varchar(255) NOT NULL, rank int UNIQUE);'
         )
@@ -106,15 +111,11 @@ const main = async () => {
 
     // console.log(b);
 
-    // const QueryRepo = client.addRepositories({
-    //     user: UserRepo
-    // });
-
     // const c = await QueryRepo.user.list();
 
     // console.log(c);
 
-    const bb = await query.transaction(async (t) => {
+    const bb = await db.query.transaction(async (t) => {
         const rank = randomInt(10000);
         const rank2 = randomInt(10000);
 
@@ -139,7 +140,7 @@ const main = async () => {
         //     .none();
     });
 
-    const cc = query.run('SELECT * FROM USERS LIMIT 2');
+    const cc = db.query.run('SELECT * FROM USERS LIMIT 2');
 
     console.log(cc);
 };
