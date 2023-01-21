@@ -35,7 +35,7 @@ describe('RUN', () => {
             .run('SELECT * from users WHERE id = $<id>', { id: 1 })
             .one<UserModel>();
 
-        expect(r).to.have.keys(['id', 'name', 'email', 'rank']);
+        expect(r).to.have.keys(['id', 'name', 'email', 'rank', 'optional']);
     });
     it('SHOULD INSERT ONE USER with run query', async () => {
         const rank = randomInt();
@@ -49,13 +49,13 @@ describe('RUN', () => {
             )
             .one<UserModel>();
 
-        expect(r).to.have.keys(['id', 'name', 'email', 'rank']);
+        expect(r).to.have.keys(['id', 'name', 'email', 'rank', 'optional']);
     });
     it('SHOULD SELECT all users with run query and no params', async () => {
         const r = await db.query.run('SELECT * from users').many<UserModel>();
 
         expect(r).to.be.an('array');
-        expect(r[0]).to.have.keys(['id', 'name', 'email', 'rank']);
+        expect(r[0]).to.have.keys(['id', 'name', 'email', 'rank', 'optional']);
     });
     it('SHOULD LOG query and results via onReturn function', async () => {
         let query = '';
@@ -77,6 +77,12 @@ describe('RUN', () => {
         expect(query).to.be.a('string');
         expect(query).to.equal('SELECT * FROM users');
         expect(result).to.be.an('array');
-        expect(result[0]).to.have.keys(['id', 'name', 'email', 'rank']);
+        expect(result[0]).to.have.keys([
+            'id',
+            'name',
+            'email',
+            'rank',
+            'optional'
+        ]);
     });
 });

@@ -28,7 +28,13 @@ describe('FIND', () => {
                 .many<UserModel>();
 
             expect(r).to.be.an('array');
-            expect(r[0]).to.have.keys(['id', 'name', 'email', 'rank']);
+            expect(r[0]).to.have.keys([
+                'id',
+                'name',
+                'email',
+                'rank',
+                'optional'
+            ]);
         });
         it('SHOULD FIND 15 user records', async () => {
             const count = 15;
@@ -40,7 +46,13 @@ describe('FIND', () => {
 
             expect(r).to.be.an('array');
             expect(r).to.have.length(count);
-            expect(r[0]).to.have.keys(['id', 'name', 'email', 'rank']);
+            expect(r[0]).to.have.keys([
+                'id',
+                'name',
+                'email',
+                'rank',
+                'optional'
+            ]);
         });
     });
     describe('ONE', () => {
@@ -49,7 +61,7 @@ describe('FIND', () => {
                 .find('SELECT * FROM Users WHERE id = 1')
                 .one<UserModel>();
 
-            expect(r).to.have.keys(['id', 'name', 'email', 'rank']);
+            expect(r).to.have.keys(['id', 'name', 'email', 'rank', 'optional']);
         });
         it('SHOULD FIND one user record with param id provided', async () => {
             const r = await db.query
@@ -58,7 +70,7 @@ describe('FIND', () => {
                 })
                 .one<UserModel>();
 
-            expect(r).to.have.keys(['id', 'name', 'email', 'rank']);
+            expect(r).to.have.keys(['id', 'name', 'email', 'rank', 'optional']);
             expect(r.id).to.equal(1);
         });
         it('SHOULD FIND one user record with filter object', async () => {
@@ -68,7 +80,7 @@ describe('FIND', () => {
                 })
                 .one<UserModel>();
 
-            expect(r).to.have.keys(['id', 'name', 'email', 'rank']);
+            expect(r).to.have.keys(['id', 'name', 'email', 'rank', 'optional']);
             expect(r.id).to.equal(1);
         });
         it('SHOULD FIND one user record with filter string', async () => {
@@ -78,7 +90,7 @@ describe('FIND', () => {
                 })
                 .one<UserModel>();
 
-            expect(r).to.have.keys(['id', 'name', 'email', 'rank']);
+            expect(r).to.have.keys(['id', 'name', 'email', 'rank', 'optional']);
             expect(r.id).to.equal(1);
         });
     });
