@@ -38,6 +38,58 @@ describe('UPDATE', () => {
 
         expect(update.name).to.equal('UPDATED');
     });
+    it('SHOULD UPDATE multiple user records', async () => {
+        const r = await db.query
+            .update<UserModel>(
+                [
+                    {
+                        name: 'UPDATED',
+                        id: 2
+                    },
+                    {
+                        name: 'UPDATED',
+                        id: 3
+                    }
+                ],
+                {
+                    table: 'users',
+                    columns: ['name', { name: 'id', cnd: true }],
+                    returning: 't.name'
+                }
+            )
+            .many<UserModel>();
+
+        expect(r).to.have.length(2);
+        expect(r[0].name).to.equal('UPDATED');
+        expect(r[1].name).to.equal('UPDATED');
+    });
+    it('SHOULD THROW QueryBuildError due to missing columns for updating multiple records', async () => {
+        const r = () =>
+            db.query.update(
+                [
+                    {
+                        name: 'UPDATED',
+                        id: 2
+                    },
+                    {
+                        name: 'UPDATED',
+                        id: 3
+                    }
+                ],
+                {
+                    table: 'users',
+                    returning: 'name'
+                }
+            );
+
+        expect(r)
+            .to.throw(
+                QueryBuildError,
+                "Parameter 'columns' is required when updating multiple records."
+            )
+            .and.property('type')
+            .to.equal('COLUMNS_MISSING');
+    });
     it('SHOULD THROW QueryBuildError due to missing table', async () => {
         const rank = randomInt();
 

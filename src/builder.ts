@@ -132,12 +132,17 @@ export default class QueryBuilder<Model = undefined> {
         data: DataInput,
         params?: UpdateQueryParams<Model extends undefined ? M : Model>
     ): Query {
-        const update = buildUpdateInsertQuery(
+        let update = buildUpdateInsertQuery(
             'UPDATE',
             data,
             params?.columns,
             params?.table || this.table
         );
+
+        // add WHERE for updating multiple records
+        if (Array.isArray(data)) {
+            update = update + ' WHERE v.id = t.id';
+        }
 
         const query = concatenateQuery([
             update,

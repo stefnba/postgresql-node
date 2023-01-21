@@ -103,6 +103,7 @@ export type ConnectionErrorArgs = {
 export type QueryBuildErrorParams = QueryErrorArgs & {
     type:
         | 'TABLE_NAME_MISSING'
+        | 'COLUMNS_MISSING'
         | 'EMPTY_QUERY'
         | 'DATA_PROPERTY_MISSING'
         | 'SQL_FILE_NOT_FOUND';

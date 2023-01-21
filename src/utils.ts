@@ -201,6 +201,19 @@ export const buildUpdateInsertQuery = <M>(
             });
         }
 
+        if (
+            err.message ===
+            "Parameter 'columns' is required when updating multiple records."
+        ) {
+            throw new QueryBuildError({
+                message: err.message,
+                type: 'COLUMNS_MISSING',
+                table,
+                column: 'rank',
+                command
+            });
+        }
+
         console.log('dddd', err);
     }
 };
