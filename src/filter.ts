@@ -78,6 +78,7 @@ export const buildFilters = (
     filter?: FilterInput<any>,
     table?: string
 ): string | undefined => {
+    console.log('fiter', filter);
     if (!filter) return undefined;
     if (typeof filter === 'string') return filter;
 

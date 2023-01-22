@@ -53,6 +53,21 @@ describe('ADD', () => {
             )
             .none();
     });
+    it('SHOULD ADD one user record with short version', async () => {
+        const rank = randomInt();
+        const r = await db.query
+            .add(
+                {
+                    name: `add-${rank}`,
+                    email: `${rank}@mail.com`,
+                    rank: rank
+                },
+                'users'
+            )
+            .one();
+
+        expect(r).to.have.keys(['id', 'name', 'email', 'rank', 'optional']);
+    });
     it('SHOULD ADD one user record with columns and return record', async () => {
         const rank = randomInt();
         const r = await db.query

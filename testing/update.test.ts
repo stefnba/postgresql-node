@@ -38,6 +38,19 @@ describe('UPDATE', () => {
 
         expect(update.name).to.equal('UPDATED');
     });
+    it('SHOULD UPDATE one user record with shorthand', async () => {
+        const update = await db.query
+            .update(
+                {
+                    name: 'UPDATED_SHORT'
+                },
+                'users',
+                'id = 1'
+            )
+            .one<UserModel>();
+
+        expect(update.name).to.equal('UPDATED_SHORT');
+    });
     it('SHOULD UPDATE multiple user records', async () => {
         const r = await db.query
             .update<UserModel>(
@@ -54,14 +67,16 @@ describe('UPDATE', () => {
                 {
                     table: 'users',
                     columns: ['name', { name: 'id', cnd: true }],
-                    returning: 't.name'
+                    returning: 't.name, t.id'
                 }
             )
             .many<UserModel>();
 
         expect(r).to.have.length(2);
         expect(r[0].name).to.equal('UPDATED');
+        expect(r[0].id).to.equal(2);
         expect(r[1].name).to.equal('UPDATED');
+        expect(r[1].id).to.equal(3);
     });
     it('SHOULD THROW QueryBuildError due to missing columns for updating multiple records', async () => {
         const r = () =>
