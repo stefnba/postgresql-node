@@ -35,7 +35,7 @@ import { sqlFile } from './queryFile';
  *      queries = this.sqlFile('sqlFile.sql');
  * }
  */
-export default class DatabaseRepository<M> {
+export default class DatabaseRepository<M = undefined> {
     /**
      * Query client that can be used in methods to run queries against database connection.
      */
