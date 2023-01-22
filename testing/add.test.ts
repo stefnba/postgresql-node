@@ -206,4 +206,31 @@ describe('ADD', () => {
             .and.property('type')
             .to.equal('INVALID_TEXT_REPRESENTATION');
     });
+    it('SHOULD THROW QueryBuildError since not data is provided (array)', async () => {
+        const r = () =>
+            db.query.add([], {
+                columns: [],
+                returning: '*',
+                table: 'users'
+            });
+        expect(r)
+            .to.throw(
+                QueryBuildError,
+                'No data was provided. INSERT query cannot be generated'
+            )
+            .and.property('type')
+            .to.equal('EMPTY_DATA');
+    });
+    it('SHOULD THROW QueryBuildError since not data is provided (object)', async () => {
+        const r = () =>
+            db.query.add({}, { columns: [], returning: '*', table: 'users' });
+
+        expect(r)
+            .to.throw(
+                QueryBuildError,
+                'No data was provided. INSERT query cannot be generated'
+            )
+            .and.property('type')
+            .to.equal('EMPTY_DATA');
+    });
 });

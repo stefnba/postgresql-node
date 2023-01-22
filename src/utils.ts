@@ -189,7 +189,17 @@ export const buildUpdateInsertQuery = <M>(
         : null;
 
     try {
-        return pgHelpers[_command](data, _columns, table);
+        const q = pgHelpers[_command](data, _columns, table);
+
+        // if (q.trim() === '' || !q) {
+        //     throw new QueryBuildError({
+        //         message: 'Query cannot be empty',
+        //         type: 'EMPTY_QUERY',
+        //         command
+        //     });
+        // }
+
+        return q;
     } catch (err) {
         if (err instanceof Error) {
             if (err.message.match(/Property '([a-zA-Z]+)' doesn't exist\./g)) {
@@ -211,6 +221,19 @@ export const buildUpdateInsertQuery = <M>(
                     type: 'COLUMNS_MISSING',
                     table,
                     column: 'rank',
+                    command
+                });
+            }
+
+            if (
+                err.message ===
+                    'Cannot generate an INSERT from an empty array.' ||
+                err.message === 'Cannot generate an INSERT without any columns.'
+            ) {
+                throw new QueryBuildError({
+                    message: `No data was provided. ${command} query cannot be generated`,
+                    type: 'EMPTY_DATA',
+                    table,
                     command
                 });
             }
