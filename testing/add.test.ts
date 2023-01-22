@@ -53,6 +53,21 @@ describe('ADD', () => {
             )
             .none();
     });
+    it('SHOULD ADD one user record with short version', async () => {
+        const rank = randomInt();
+        const r = await db.query
+            .add(
+                {
+                    name: `add-${rank}`,
+                    email: `${rank}@mail.com`,
+                    rank: rank
+                },
+                'users'
+            )
+            .one();
+
+        expect(r).to.have.keys(['id', 'name', 'email', 'rank', 'optional']);
+    });
     it('SHOULD ADD one user record with columns and return record', async () => {
         const rank = randomInt();
         const r = await db.query
@@ -205,5 +220,32 @@ describe('ADD', () => {
             )
             .and.property('type')
             .to.equal('INVALID_TEXT_REPRESENTATION');
+    });
+    it('SHOULD THROW QueryBuildError since not data is provided (array)', async () => {
+        const r = () =>
+            db.query.add([], {
+                columns: [],
+                returning: '*',
+                table: 'users'
+            });
+        expect(r)
+            .to.throw(
+                QueryBuildError,
+                'No data was provided. INSERT query cannot be generated'
+            )
+            .and.property('type')
+            .to.equal('EMPTY_DATA');
+    });
+    it('SHOULD THROW QueryBuildError since not data is provided (object)', async () => {
+        const r = () =>
+            db.query.add({}, { columns: [], returning: '*', table: 'users' });
+
+        expect(r)
+            .to.throw(
+                QueryBuildError,
+                'No data was provided. INSERT query cannot be generated'
+            )
+            .and.property('type')
+            .to.equal('EMPTY_DATA');
     });
 });

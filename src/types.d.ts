@@ -102,6 +102,7 @@ export type ConnectionErrorArgs = {
 
 export type QueryBuildErrorParams = QueryErrorArgs & {
     type:
+        | 'EMPTY_DATA'
         | 'TABLE_NAME_MISSING'
         | 'COLUMNS_MISSING'
         | 'EMPTY_QUERY'

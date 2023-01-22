@@ -8,7 +8,8 @@ import {
     DataInput,
     BatchQueryCallback,
     BatchClient,
-    QueryInput
+    QueryInput,
+    FilterInput
 } from './types';
 import Query from './query';
 
@@ -84,17 +85,20 @@ export default class QueryBuilder<Model = undefined> {
     /**
      * Builds INSERT query
      * @param data
+     * Data object or array of data objects for INSERT query
      * @param params
      * @returns
+     * Query instance with generated query as argument
      */
-    add(data: DataInput, table: string): Query;
+
     add<M = Model extends undefined ? unknown : Model>(
         data: DataInput,
         params: AddQueryParams<Model extends undefined ? M : Model>
     ): Query;
+    add(data: DataInput, table: string): Query;
     add<M = Model extends undefined ? unknown : Model>(
         data: DataInput,
-        params?: AddQueryParams<Model extends undefined ? M : Model> | string
+        params: AddQueryParams<Model extends undefined ? M : Model> | string
     ) {
         const add = buildUpdateInsertQuery(
             'INSERT',
@@ -110,10 +114,10 @@ export default class QueryBuilder<Model = undefined> {
             },
             {
                 type: 'RETURNING',
-                query:
-                    typeof params === 'string' ? undefined : params?.returning
+                query: typeof params === 'string' ? '*' : params?.returning
             }
         ]);
+
         return new Query(this.client.any, this.isBatch, query, {
             command: 'INSERT',
             table: this.table,
@@ -124,19 +128,30 @@ export default class QueryBuilder<Model = undefined> {
     /**
      * Builds UPDATE query
      * @param data
-     * @param filter
+     * Data object or array of data objects for INSERT query
      * @param params
      * @returns
+     * Query instance with generated query as argument
      */
     update<M = Model extends undefined ? unknown : Model>(
         data: DataInput,
-        params?: UpdateQueryParams<Model extends undefined ? M : Model>
+        params: UpdateQueryParams<Model extends undefined ? M : Model>
+    ): Query;
+    update<M = Model extends undefined ? unknown : Model>(
+        data: DataInput,
+        table: string,
+        filter: FilterInput<Model extends undefined ? M : Model>
+    ): Query;
+    update<M = Model extends undefined ? unknown : Model>(
+        data: DataInput,
+        params: string | UpdateQueryParams<Model extends undefined ? M : Model>,
+        filter?: FilterInput<Model extends undefined ? M : Model>
     ): Query {
         let update = buildUpdateInsertQuery(
             'UPDATE',
             data,
-            params?.columns,
-            params?.table || this.table
+            typeof params === 'string' ? undefined : params?.columns,
+            typeof params === 'string' ? params : params?.table || this.table
         );
 
         // add WHERE for updating multiple records
@@ -144,14 +159,31 @@ export default class QueryBuilder<Model = undefined> {
             update = update + ' WHERE v.id = t.id';
         }
 
+        // filter and table depending on overload
+        let _filter: string | undefined = undefined;
+        const _table =
+            typeof params === 'string' ? params : params?.table || this.table;
+
+        if (filter) {
+            _filter = buildFilters(filter, _table);
+        } else if (typeof params !== 'string') {
+            _filter = buildFilters(params?.filter, _table);
+        }
+
+        console.log(_filter);
+
         const query = concatenateQuery([
             update,
             {
                 type: 'WHERE',
-                query: buildFilters(params?.filter, params?.table || this.table)
+                query: _filter
             },
-            { type: 'RETURNING', query: params?.returning }
+            {
+                type: 'RETURNING',
+                query: typeof params === 'string' ? '*' : params?.returning
+            }
         ]);
+        console.log(query);
         return new Query(this.client.any, this.isBatch, query, {
             command: 'UPDATE',
             table: this.table,
