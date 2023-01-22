@@ -8,7 +8,8 @@ import {
     DataInput,
     BatchQueryCallback,
     BatchClient,
-    QueryInput
+    QueryInput,
+    FilterInput
 } from './types';
 import Query from './query';
 
@@ -136,11 +137,15 @@ export default class QueryBuilder<Model = undefined> {
         data: DataInput,
         params: UpdateQueryParams<Model extends undefined ? M : Model>
     ): Query;
-    update(data: DataInput, table: string, filter: string): Query;
+    update<M = Model extends undefined ? unknown : Model>(
+        data: DataInput,
+        table: string,
+        filter: FilterInput<Model extends undefined ? M : Model>
+    ): Query;
     update<M = Model extends undefined ? unknown : Model>(
         data: DataInput,
         params: string | UpdateQueryParams<Model extends undefined ? M : Model>,
-        filter?: string
+        filter?: FilterInput<Model extends undefined ? M : Model>
     ): Query {
         let update = buildUpdateInsertQuery(
             'UPDATE',
