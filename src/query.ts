@@ -96,31 +96,31 @@ export default class Query {
     }
 
     /**
-     * Executes query and returns either many records or none
+     * Executes query and expects to return many records. If no record found, throws QueryResultError
      * @returns
      * Array of db records
      */
-    manyOrNone<R>(): Promise<R[] | undefined> {
-        return this.getResult();
-    }
-
-    /**
-     * Executes query and returns many db records or throw Error if none were found
-     * @returns
-     * Array of db records or Error
-     */
-    async many<R>(): Promise<R[]> {
+    async manyStrict<R>(): Promise<R[]> {
         const result = await this.getResult();
         if (result.length === 0 || !result) {
             throw new QueryResultError({
                 table: this.table,
                 command: this.command,
                 type: 'RECORD_NOT_FOUND',
-                message: 'Record does not exist',
+                message: 'Records do not exist',
                 query: this.query
             });
         }
         return result;
+    }
+
+    /**
+     * Executes query and returns many db records
+     * @returns
+     * Array of db records
+     */
+    many<R>(): Promise<R[]> {
+        return this.getResult();
     }
 
     /**
