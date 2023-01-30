@@ -6,6 +6,14 @@ PostgreSQL interface for Node.js with TypeScript to simplify common database int
 
 # Setup
 
+Install package.
+
+```sh
+npm install postgresql-node
+```
+
+Import package and initialize database object with connection details and options.
+
 ```ts
 import PostgresClient from 'postgresql-node';
 

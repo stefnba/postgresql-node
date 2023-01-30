@@ -1,7 +1,7 @@
 {
     "name": "postgresql-node",
-    "version": "0.1.0",
-    "description": "",
+    "version": "0.0.0",
+    "description": "PostgreSQL interface for Node.js with TypeScript to simplify common database interactions and error handling.",
     "main": "lib/index.js",
     "types": "lib/index.d.ts",
     "files": [
@@ -20,9 +20,14 @@
         "version": "npm run format && git add -A src",
         "postversion": "git push && git push --tags"
     },
-    "keywords": [],
+    "keywords": [
+        "nodejs",
+        "database",
+        "postgresql",
+        "pg"
+    ],
     "author": "Stefan Bauer",
-    "license": "ISC",
+    "license": "MIT",
     "devDependencies": {
         "@types/chai": "^4.3.4",
         "@types/chai-as-promised": "^7.1.5",
